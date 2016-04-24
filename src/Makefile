@@ -3,12 +3,14 @@ OBJS = $(patsubst %.cpp, %.o, $(SRCS))
 
 PROC = "acproxy"
 
-CXXFLAGS = -std=c++1y -g -pthread
+LIBS = -pthread
+
+CXXFLAGS = -std=c++14 -g
 
 all: LINK
 
 LINK: $(OBJS)
-	$(CXX) -o $(PROC) $(OBJS) $(CXXFLAGS)
+	$(CXX) -o $(PROC) $(OBJS) $(CXXFLAGS) $(LIBS)
 
 .cpp.o:
 	$(CXX) $(CXXFLAGS) -c $< -o $@
