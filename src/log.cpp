@@ -7,12 +7,12 @@
 #include <unistd.h>
 
 namespace {
-struct colorful_info {
+struct ColorInfo {
     const char* text;
     char color;
 };
 
-colorful_info infos[] = {
+ColorInfo infos[] = {
     {"FATAL", '1'},    // Red
     {"ERROR", '5'},    // Pink
     {"WARNING", '3'},  // Yellow
@@ -34,7 +34,7 @@ Logger::~Logger() noexcept {
     };
 
     const bool useColor = ::isatty(STDOUT_FILENO);
-    const colorful_info& info = infos[__builtin_ctz(mask)];
+    const ColorInfo& info = infos[__builtin_ctz(mask)];
     std::string line;
     char tmp[128];
 
@@ -49,7 +49,7 @@ Logger::~Logger() noexcept {
     line += buffer.str();
     line += '\n';
 
-    std::lock_guard<std::mutex> lcck(log_mutex);
+    std::lock_guard<std::mutex> lck(log_mutex);
     std::size_t written = 0;
     while (written < line.size()) {
         ::ssize_t ret = ::write(STDOUT_FILENO, line.data() + written, line.size() - written);
