@@ -36,6 +36,7 @@ int main() {
         DEBUG_THROW_SYSTEMEXCEPTION("listen error ", strerror(err_code));
     }
 
+    // TODO threadpool
     Reactor& reactor = Reactor::getInstance();
     std::shared_ptr<EventHandle> hd = std::make_shared<ListenHandle>(sk);
     reactor.register_(hd, Event::Read);

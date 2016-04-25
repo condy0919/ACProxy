@@ -4,17 +4,16 @@
 #include "event.hpp"
 #include "event_handle.hpp"
 #include "epoll.hpp"
+#include <boost/noncopyable.hpp>
 
 namespace ACProxy {
 
-class Reactor {
+class Reactor : public boost::noncopyable {
 public:
     Reactor() = default;
-    Reactor(const Reactor&) = delete;
-    Reactor& operator=(const Reactor&) = delete;
 
     static Reactor& getInstance() {
-        static Reactor reactor;
+        static thread_local Reactor reactor;
         return reactor;
     }
 
