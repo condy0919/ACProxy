@@ -41,9 +41,9 @@ Logger::~Logger() noexcept {
     line += GetCurrentTime();
     line += " | ";
     if (useColor) {
-        sprintf(tmp, "\033[3%cm[%s]\033[0m ", info.color, info.text);
+        sprintf(tmp, "\033[3%cm[%s]\033[0m %s:%d ", info.color, info.text, file, this->line);
     } else {
-        sprintf(tmp, "[%s] ", info.text);
+        sprintf(tmp, "[%s] %s:%d ", info.text, file, this->line);
     }
     line += tmp;
     line += buffer.str();

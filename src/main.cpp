@@ -9,10 +9,15 @@
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <signal.h>
+#include <ctime>
 
 using namespace ACProxy;
 
 int main() {
+    ::signal(SIGPIPE, SIG_IGN);
+    std::srand(std::time(0)); // TODO std::random later
+
     int sk = ::socket(AF_INET, SOCK_STREAM, 0);
     if (sk < 0) {
         const int err_code = errno;
@@ -42,7 +47,7 @@ int main() {
     reactor.register_(hd, Event::Read);
     while (true) {
         reactor.eventLoop(-1);
-        std::printf("one loop\n");
+        //std::printf("one loop\n");
     }
     return 0;
 }

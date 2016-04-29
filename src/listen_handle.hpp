@@ -22,7 +22,7 @@ public:
     }
 
     int getHandle() const noexcept override {
-        return  lfd;
+        return lfd;
     }
 
     void onRead() override {

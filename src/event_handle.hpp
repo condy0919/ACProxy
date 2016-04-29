@@ -1,6 +1,8 @@
 #ifndef ACPROXY_EVENT_HANDLE_HPP_
 #define ACPROXY_EVENT_HANDLE_HPP_
 
+#include <memory>
+
 namespace ACProxy {
 
 class EventHandle {
