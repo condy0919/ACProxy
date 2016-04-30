@@ -19,35 +19,6 @@ bool HttpHandle::onRead() {
     std::tie(res, std::ignore) =
         request_parser.parse(request, in.begin(), in.end());
     if (res == Http::RequestParser::good) {
-        //const char* resp = "HTTP/1.1 200 OK\r\n"
-        //                   "Server: nginx/1.10.0\r\n"
-        //                   "Date: Sat, 30 Apr 2016 14:13:21 GMT\r\n"
-        //                   "Content-Type: text/html; charset=UTF-8\r\n"
-        //                   "Transfer-Encoding: chunked\r\n"
-        //                   "Connection: keep-alive\r\n"
-        //                   "X-Powered-By: PHP/7.0.6\r\n"
-        //                   "\r\n"
-        //                   "it's %d\r\n"
-        //                   "\r\n";
-        //static int cnt = 1;
-        //static char buf[1024];
-        //std::sprintf(buf, resp, cnt);
-        //cnt += 10;
-
-        //LOG_ACPROXY_INFO("start to simulate resp");
-        //setResp(std::vector<char>(buf, buf + std::strlen(buf)));
-        //{
-        //    Reactor& reactor = Reactor::getInstance();
-        //    reactor.register_(shared_from_this(), static_cast<Event>(/*Event::Read |*/ Event::Write));
-        //    request_parser.reset(); // for next http request
-        //    request = Http::Request();
-        //}
-        //LOG_ACPROXY_INFO("simulatation done");
-        ////
-        //// test
-        ////
-        //return true;
-
         LOG_ACPROXY_INFO("http request parsed correct");
         // filter
         // cache
@@ -55,11 +26,17 @@ bool HttpHandle::onRead() {
 
         // TODO Simplify it
         std::string host;
+        int port = 80;
         for (Http::Header h : request.headers) {
             if (h.name == "Host") {
                 int pos = h.value.find_first_of(":");
-                host = h.value.substr(0, pos);
-                // host = h.value;
+                if (pos == std::string::npos) {
+                    host = h.value;
+                } else {
+                    host = h.value.substr(0, pos);
+                    std::string s = h.value.substr(pos + 1);
+                    port = std::stoi(h.value.substr(pos + 1));
+                }
                 break;
             }
         }
@@ -77,7 +54,7 @@ bool HttpHandle::onRead() {
         int idx = std::rand() % total;  // TODO use std::random later
         struct sockaddr_in addr;
         addr.sin_family = AF_INET;
-        addr.sin_port = ::htons(80);  // FIXME
+        addr.sin_port = ::htons(port);  // FIXME
         addr.sin_addr = *(struct in_addr*)h->h_addr_list[idx];
 
         // TODO connection-pool
