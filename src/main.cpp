@@ -1,3 +1,4 @@
+#include "exception.hpp"
 #include "log.hpp"
 #include "event.hpp"
 #include "event_handle.hpp"
@@ -11,6 +12,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <ctime>
+#include <cstring>
 
 using namespace ACProxy;
 

@@ -19,22 +19,23 @@ public:
 
     int register_(std::shared_ptr<EventHandle> hd, Event evt) {
         int h = hd->getHandle();
-        if (handlers.find(h) == handlers.end()) {
+        if (!handlers.count(h)) {
             handlers.insert(std::make_pair(h, hd));
             return epoll.register_(h, evt);
         } else {
+            // XXX reassign?
             return epoll.modify(h, evt);
         }
     }
 
     void unregister(std::shared_ptr<EventHandle> hd) {
-        LOG_ACPROXY_INFO("get fd");
-        int h = hd->getHandle();
-        LOG_ACPROXY_INFO("epoll remove");
-        epoll.unregister(h);
-        LOG_ACPROXY_INFO("handlers erase");
-        handlers.erase(h);
-        LOG_ACPROXY_INFO("all done");
+        int fd = hd->getHandle();
+        unregister(fd);
+    }
+
+    void unregister(int fd) {
+        epoll.unregister(fd);
+        handlers.erase(fd);
     }
 
     void eventLoop(int timeout = 0) {

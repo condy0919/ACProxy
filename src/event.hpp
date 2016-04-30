@@ -2,12 +2,12 @@
 #define ACPROXY_EVENT_HPP_
 
 namespace ACProxy {
-
-enum class Event {
+enum Event {
     Read = 0x1,
     Write = 0x2,
     Error = 0x4
 };
+
 }
 
 #endif
