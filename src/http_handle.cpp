@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <iostream>
 
 namespace ACProxy {
 bool HttpHandle::onRead() {
@@ -20,6 +21,7 @@ bool HttpHandle::onRead() {
         request_parser.parse(request, in.begin(), in.end());
     if (res == Http::RequestParser::good) {
         LOG_ACPROXY_INFO("http request parsed correct");
+        std::cout << request << '$';
         // filter
         // cache
         // forward req to source
@@ -77,6 +79,7 @@ bool HttpHandle::onRead() {
 
         request_parser.reset(); // for next http request
         request = Http::Request();
+        in.clear();
 
         return true;
     } else if (res == Http::RequestParser::bad) {

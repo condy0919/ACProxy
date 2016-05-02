@@ -11,9 +11,9 @@ bool HttpForwardHandle::onRead() {
         return false;
     }
 
-    for (char c : in) {
-        std::putchar(c);
-    }
+    //for (char c : in) {
+    //    std::putchar(c);
+    //}
 
     LOG_ACPROXY_INFO("after SocketHandle::onRead");
     auto http_handle = receiver.lock();

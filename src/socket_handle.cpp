@@ -20,28 +20,27 @@ bool SocketHandle::onRead() {
     while ((ret = ::recv(sk, buf, sizeof(buf), 0)) > 0) {
         in.insert(in.end(), buf, buf + ret);
     }
-    LOG_ACPROXY_INFO("the content received");
+    LOG_ACPROXY_INFO("the content received ", in.size(), " bytes");
     //std::for_each(in.begin(), in.end(), std::putchar);
-    LOG_ACPROXY_INFO("content ends");
+    //LOG_ACPROXY_INFO("content ends");
 
-    const int err_code = errno;
-    if (ret == -1 && err_code == EAGAIN) {
-        LOG_ACPROXY_INFO("SocketHandle::onRead EAGAIN happens");
-        return true;
-    } else if (ret == 0 /*&& err_code != EAGAIN */) {
-        LOG_ACPROXY_INFO("SocketHandle::onRead ends, errno = ",
-                         std::strerror(err_code));
+    if (ret == -1) {
+        const int err_code = errno;
+        if (err_code == EAGAIN) {
+            LOG_ACPROXY_INFO("SocketHandle::onRead EAGAIN happens");
+            return true;
+        }
+        return false;
+    } else if (ret == 0) {
+        LOG_ACPROXY_INFO("SocketHandle::onRead ends");
         Reactor& reactor = Reactor::getInstance();
 
         LOG_ACPROXY_INFO("start to remove it");
         reactor.unregister(sk);
         LOG_ACPROXY_INFO("remove done");
         return false;
-    } else if (ret == 0) {
-        LOG_ACPROXY_INFO("received 0 byte");
-        return true;
     } else {
-        LOG_ACPROXY_ERROR("unknown error ", std::strerror(err_code));
+        LOG_ACPROXY_INFO("ret of last recv = ", ret);
         return false;
     }
 }
