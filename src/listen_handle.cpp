@@ -13,7 +13,7 @@ ListenHandle::~ListenHandle() {
     ::close(lfd);
 }
 
-bool ListenHandle::onRead() {
+int ListenHandle::onRead() {
     struct sockaddr_in client;
     socklen_t len = sizeof(client);
     int fd = ::accept(lfd, (struct sockaddr*)&client, &len);

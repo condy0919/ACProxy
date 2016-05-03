@@ -13,9 +13,9 @@ SocketHandle::~SocketHandle() {
     ::close(sk);
 }
 
-bool SocketHandle::onRead() {
+int SocketHandle::onRead() {
     LOG_ACPROXY_INFO("SocketHandle start to read");
-    static char buf[1024];  // TODO CUSTOM IT
+    static char buf[4096];  // TODO CUSTOM IT
     int ret = 0;
     while ((ret = ::recv(sk, buf, sizeof(buf), 0)) > 0) {
         in.insert(in.end(), buf, buf + ret);
@@ -45,7 +45,7 @@ bool SocketHandle::onRead() {
     }
 }
 
-bool SocketHandle::onWrite() {
+int SocketHandle::onWrite() {
     if (out.empty()) {
         return false;
     }
@@ -65,6 +65,7 @@ bool SocketHandle::onWrite() {
     }
     std::vector<char> out_(out.begin() + sent, out.end());
     out_.swap(out);
+
     if (ret == -1) {
         const int err_code = errno;
         if (err_code == EAGAIN) {

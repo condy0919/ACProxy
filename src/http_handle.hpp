@@ -14,7 +14,11 @@ class HttpHandle : public SocketHandle,
     friend class HttpForwardHandle;
 public:
     using SocketHandle::SocketHandle;
-    bool onRead() override;
+    int onRead() override;
+
+    std::string getName() const override {
+        return "HttpHandle";
+    }
 
 private:
     void setResp(std::vector<char> resp) {

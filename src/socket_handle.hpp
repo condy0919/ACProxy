@@ -18,8 +18,8 @@ public:
         return sk;
     }
 
-    bool onRead() override;
-    bool onWrite() override;
+    int onRead() override;
+    int onWrite() override;
 
 private:
     int sk;

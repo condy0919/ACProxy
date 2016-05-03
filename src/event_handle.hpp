@@ -1,6 +1,8 @@
 #ifndef ACPROXY_EVENT_HANDLE_HPP_
 #define ACPROXY_EVENT_HANDLE_HPP_
 
+#include <string>
+
 namespace ACProxy {
 
 class EventHandle {
@@ -9,9 +11,13 @@ public:
     virtual ~EventHandle() noexcept {}
 
     virtual int getHandle() const = 0;
-    virtual bool onRead() {}
-    virtual bool onWrite() {}
-    virtual bool onError() {}
+    virtual int onRead() {}
+    virtual int onWrite() {}
+    virtual int onError() {}
+
+    virtual std::string getName() const {
+        return "EventHandle";
+    }
 };
 }
 

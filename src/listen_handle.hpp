@@ -13,7 +13,11 @@ public:
     int getHandle() const noexcept override {
         return lfd;
     }
-    bool onRead() override;
+    int onRead() override;
+
+    std::string getName() const override {
+        return "ListenHandle";
+    }
 
 private:
     int lfd;

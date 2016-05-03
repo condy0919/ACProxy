@@ -24,7 +24,7 @@ int Epoll::waitEvent(std::map<int, std::shared_ptr<EventHandle>>& hs, int timeou
     int n = ::epoll_wait(epfd, &evs[0], max_fd, timeout);
     if (n > 0) {
         for (auto&& h : hs) {
-            std::cout << h.first << " ";
+            std::cout << h.first << " -> " << h.second->getName() << "; ";
         }
         std::cout << '\n';
         for (int i = 0; i < n; ++i) {

@@ -11,7 +11,7 @@
 #include <iostream>
 
 namespace ACProxy {
-bool HttpHandle::onRead() {
+int HttpHandle::onRead() {
     if (!SocketHandle::onRead()) {  // prepare http request
         return false;
     }
@@ -29,19 +29,32 @@ bool HttpHandle::onRead() {
         // TODO Simplify it
         std::string host;
         int port = 80;
-        for (Http::Header h : request.headers) {
-            if (h.name == "Host") {
-                int pos = h.value.find_first_of(":");
-                if (pos == std::string::npos) {
-                    host = h.value;
-                } else {
-                    host = h.value.substr(0, pos);
-                    std::string s = h.value.substr(pos + 1);
-                    port = std::stoi(h.value.substr(pos + 1));
-                }
-                break;
+
+        // TODO support more methods
+        /*
+        if (request.method == "CONNECT") {
+            int pos = request.uri.find_first_of(":");
+            if (pos == std::string::npos) {
+                host = request.uri;
+            } else {
+                host = request.uri.substr(0, pos);
+                port = std::stoi(request.uri.substr(pos + 1));
             }
-        }
+        } else { */
+            for (Http::Header h : request.headers) {
+                if (h.name == "Host") {
+                    int pos = h.value.find_first_of(":");
+                    if (pos == std::string::npos) {
+                        host = h.value;
+                    } else {
+                        host = h.value.substr(0, pos);
+                        std::string s = h.value.substr(pos + 1);
+                        port = std::stoi(h.value.substr(pos + 1));
+                    }
+                    break;
+                }
+            }
+        //}
         LOG_ACPROXY_INFO("host = ", host);
         struct hostent* h = ::gethostbyname(host.data());
         if (!h) {
