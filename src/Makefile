@@ -16,4 +16,4 @@ LINK: $(OBJS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	-rm $(OBJS)
+	-rm $(OBJS) -f

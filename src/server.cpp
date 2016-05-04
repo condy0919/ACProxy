@@ -1,36 +1,35 @@
+#include "log.hpp"
 #include "server.hpp"
 #include <boost/lexical_cast.hpp>
 #include <boost/bind.hpp>
 #include <functional>
 #include <thread>
-#include <iostream>
 
 namespace ACProxy {
 Server::Server(const std::string& addr, int port, std::size_t thread_pool_size)
     : thread_pool_size_(thread_pool_size),
       signals_(io_service_),
-      acceptor_(io_service_) /*,
-      new_connection_(io_service_),
-      request_handler_(io_service_)*/ {
+      acceptor_(io_service_) {
     signals_.add(SIGINT);
     signals_.add(SIGTERM);
     signals_.async_wait(boost::bind(&Server::handleStop, this));  // FIXME
+    LOG_ACPROXY_INFO("register handleStop...");
 
     boost::asio::ip::tcp::resolver resolver(io_service_);
     boost::asio::ip::tcp::resolver::query query(
         addr, boost::lexical_cast<std::string>(port));
-    std::cout << "start to resolve\n";
     boost::asio::ip::tcp::endpoint endpoint = *resolver.resolve(query);
-    std::cout << "resolve ends\n";
     acceptor_.open(endpoint.protocol());
     acceptor_.set_option(boost::asio::ip::tcp::acceptor::reuse_address(true));
     acceptor_.bind(endpoint);
     acceptor_.listen();
+    LOG_ACPROXY_INFO("listen socket");
 
     startAccept();
 }
 
 void Server::run() {
+    LOG_ACPROXY_INFO("starting server...");
     std::vector<std::thread> threads;
     for (std::size_t i = 0; i < thread_pool_size_; ++i) {
         threads.emplace_back(
@@ -43,8 +42,10 @@ void Server::run() {
 }
 
 void Server::startAccept() {
+    LOG_ACPROXY_INFO("register ACCEPT event");
+
     new_connection_ =
-        std::make_shared<Connection>(io_service_, request_handler_);
+        std::make_shared<Connection>(io_service_);
     acceptor_.async_accept(new_connection_->socket(),
                            boost::bind(&Server::handleAccept, this,  // FIXME
                                        boost::asio::placeholders::error));
@@ -52,12 +53,14 @@ void Server::startAccept() {
 
 void Server::handleAccept(const boost::system::error_code& e) {
     if (!e) {
+        LOG_ACPROXY_INFO("new connection established");
         new_connection_->start();
     }
     startAccept();
 }
 
 void Server::handleStop() {
+    LOG_ACPROXY_INFO("stopping server...");
     io_service_.stop();
 }
 }

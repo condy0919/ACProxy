@@ -1,9 +1,8 @@
 #ifndef ACPROXY_HTTP_RESPONSE_HPP_
 #define ACPROXY_HTTP_RESPONSE_HPP_
 
-#include "header.hpp"
 #include <string>
-#include <vector>
+#include <map>
 
 namespace Http {
 struct Response {
@@ -12,7 +11,7 @@ struct Response {
     int http_status_code;
     std::string http_status_msg;
 
-    std::vector<Header> headers;
+    std::map<std::string, std::string> headers;
     std::string content;
 };
 }
