@@ -1,1 +1,10 @@
 What does AC mean?
+==================
+
+坑太多...
+
+TODO
+* 远端 Connection close 之间，让相应的连接也断掉.
+* Socket pool(reference count)
+* Filter
+* Cache
