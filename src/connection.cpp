@@ -29,8 +29,7 @@ void Connection::handleHeaderRead(const boost::system::error_code& e,
                                   std::size_t bytes_transferred) {
     LOG_ACPROXY_INFO("starting read http request header...");
     if (e) {
-        const int err = errno;
-        LOG_ACPROXY_ERROR("read http request header error ", std::strerror(err));
+        LOG_ACPROXY_ERROR("read http request header error ", e.message());
         return;
     }
 
@@ -39,7 +38,7 @@ void Connection::handleHeaderRead(const boost::system::error_code& e,
     std::string str(boost::asio::buffers_begin(bufs),
                     boost::asio::buffers_begin(bufs) + bytes_transferred);
 
-    Http::HeaderGrammar<decltype(str)::iterator> http_grammar;
+    Http::RequestHeaderGrammar<decltype(str)::iterator> http_grammar;
     bool res = phrase_parse(str.begin(), str.end(), http_grammar,
                             boost::spirit::qi::ascii::blank, request_);
     LOG_ACPROXY_INFO("the result of parsing http request header = ", res);
@@ -70,9 +69,9 @@ void Connection::handleHeaderRead(const boost::system::error_code& e,
     }
 
     if (!still_need_read) {
-        LOG_ACPROXY_INFO("the whole http request =");
+        LOG_ACPROXY_DEBUG("the whole http request =");
         std::cout << request_;
-        LOG_ACPROXY_INFO("http request ends");
+        LOG_ACPROXY_DEBUG("http request ends");
 
         LOG_ACPROXY_INFO("http request header completes, starting forward");
         // handle forward
@@ -82,7 +81,8 @@ void Connection::handleHeaderRead(const boost::system::error_code& e,
         // cache
 
         // query source
-
+        // forward request to source website
+        forward();
     } else {
         // GUARANTEE NO SYNTAX ERROR IN HEADER
         // content body is missing
@@ -99,7 +99,8 @@ void Connection::handleHeaderRead(const boost::system::error_code& e,
 void Connection::handleBodyRead(const boost::system::error_code& e,
                                 std::size_t bytes_transferred) {
     if (e) {
-        LOG_ACPROXY_ERROR("read http request content body error");
+        LOG_ACPROXY_ERROR("read http request content body error, ",
+                          e.message());
         return;
     }
 
@@ -118,24 +119,26 @@ void Connection::handleBodyRead(const boost::system::error_code& e,
     std::cout << req;
     LOG_ACPROXY_DEBUG("request ends");
 
-    LOG_ACPROXY_INFO("register callback of http request forward");
-    boost::asio::async_write(
-        socket_, boost::asio::buffer(req.data(), req.size()),
-        strand_.wrap(
-            boost::bind(&Connection::handleForward, shared_from_this(),
-                        boost::asio::placeholders::error,
-                        boost::asio::placeholders::bytes_transferred)));
+    // FIXME
+    // forward request to source website
+    forward();
 }
 
-void Connection::handleForward(const boost::system::error_code& e,
-                               std::size_t bytes_transferred) {
+void Connection::forward() {
+    auto self = shared_from_this();
+    fwd_ = std::make_shared<Forwarder>(self, request_);
+    fwd_->start();
+}
+
+void Connection::handleWrite(const boost::system::error_code& e,
+                             std::size_t bytes_transferred) {
     if (e) {
-        LOG_ACPROXY_ERROR("forward http request error");
+        LOG_ACPROXY_ERROR("reply http resp to client error, ", e.message());
         return;
     }
 
-    LOG_ACPROXY_INFO("starting to forward http request to source destination");
-    boost::system::error_code ignored;
-    socket_.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignored);
+    LOG_ACPROXY_INFO("sent ", bytes_transferred, " bytes");
+
+    // shutdown socket
 }
 }

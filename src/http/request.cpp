@@ -2,19 +2,43 @@
 #include <boost/lexical_cast.hpp>
 
 namespace Http {
+void Request::setKeepAlive() {
+    headers["Connection"] = "keep-alive";
+}
+
+void Request::setNoKeepAlive() {
+    headers["Connection"] = "close";
+}
 
 bool Request::isKeepAlive() const {
+    // TODO consider HTTP/1.0 and HTTP/1.1 
     auto iter = headers.find("Connection");
     if (iter == headers.end())
         return false;
     return iter->second == "keep-alive";
 }
 
-std::string Request::getHost() const {
+const std::string Request::getHost() const {
     auto iter = headers.find("Host");
     if (iter == headers.end())
         return {};
     return iter->second;
+}
+
+const int Request::getPort() const {
+    if (method == "CONNECT") { // no host header, parse from uri
+        std::string::size_type pos = uri.find_first_of(":");
+        if (pos != std::string::npos) {
+            return boost::lexical_cast<int>(uri.substr(pos + 1));
+        }
+    } else {
+        std::string host = getHost();
+        std::string::size_type pos = host.find_first_of(":");
+        if (pos != std::string::npos) {
+            return boost::lexical_cast<int>(host.substr(pos + 1));
+        }
+    }
+    return 80;
 }
 
 std::size_t Request::getContentLength() const {

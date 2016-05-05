@@ -16,8 +16,11 @@ struct Request {
     std::string http_version;
     std::map<std::string, std::string> headers;
 
+    void setKeepAlive();
+    void setNoKeepAlive();
     bool isKeepAlive() const;
-    std::string getHost() const;
+    const std::string getHost() const;
+    const int getPort() const;
     std::size_t getContentLength() const;
 
     boost::optional<std::string> content;
@@ -27,9 +30,11 @@ struct Request {
 
 template <typename Iter,
           typename Skipper = boost::spirit::qi::ascii::blank_type>
-struct HeaderGrammar : boost::spirit::qi::grammar<Iter, Request(), Skipper> {
-    HeaderGrammar()
-        : HeaderGrammar::base_type(http_header, "HeaderGrammar Grammar") {
+struct RequestHeaderGrammar
+    : boost::spirit::qi::grammar<Iter, Request(), Skipper> {
+    RequestHeaderGrammar()
+        : RequestHeaderGrammar::base_type(http_header,
+                                          "RequestHeaderGrammar Grammar") {
         method = +boost::spirit::qi::alpha;
         uri = +boost::spirit::qi::graph;
         http_ver = "HTTP/" >> +boost::spirit::qi::char_("0-9.");

@@ -1,7 +1,7 @@
 SRCS = $(shell find . -iname "*.cpp")
 OBJS = $(patsubst %.cpp, %.o, $(SRCS))
 
-PROC = "acproxy"
+PROC = acproxy
 
 LIBS = -pthread -lboost_system -pthread
 
