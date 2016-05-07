@@ -1,19 +1,26 @@
 #pragma once
 
 #include "connection.hpp"
-#include "http/request.hpp"
+#include "http/response.hpp"
 #include "../libs/observer_ptr.hpp"
-#include <boost/asio.hpp>
+#include <boost/noncopyable.hpp>
+#include <string>
 #include <memory>
 
 namespace ACProxy {
-//class Connection;
-class ClientForwarder : public std::enable_shared_from_this<ClientForwarder>,
+
+class RemoteForwarder : public std::enable_shared_from_this<RemoteForwarder>,
                         private boost::noncopyable {
 public:
-    explicit ClientForwarder(std::observer_ptr<Connection> conn);
+    //explicit RemoteForwarder(std::shared_ptr<Connection> conn);
+    explicit RemoteForwarder(std::observer_ptr<Connection> conn);
+
+    ~RemoteForwarder() noexcept;
 
     std::shared_ptr<boost::asio::ip::tcp::socket> socket();
+    void socket(std::shared_ptr<boost::asio::ip::tcp::socket> sock);
+
+    void connect(std::string host, int port);
 
     void send(std::string data);
 
@@ -26,13 +33,15 @@ private:
 
     boost::asio::streambuf buffer_;
     void getBody();
-    void getBodyHandle(const boost::system::error_code& e);
+    void getBodyHandle(const boost::system::error_code& e,
+                       std::size_t bytes_transferred);
 
 private:
     boost::asio::io_service::strand strand_;
     std::shared_ptr<boost::asio::ip::tcp::socket> socket_;
-    Http::Request request_;
+    Http::Response response_;
 
     std::observer_ptr<Connection> conn_;
+    //std::shared_ptr<Connection> conn_;
 };
 }

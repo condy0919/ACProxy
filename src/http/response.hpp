@@ -20,6 +20,8 @@ struct Response {
     const std::string getContentType() const;
     const std::size_t getContentLength() const;
     const std::string getContent() const;
+    void setNoKeepAlive();
+    std::string toBuffer() const;
 
     friend std::ostream& operator<<(std::ostream& os, const Response& resp);
 };

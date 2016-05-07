@@ -1,23 +1,19 @@
 #pragma once
 
 #include "http/request.hpp"
-#include "forward.hpp"
-//#include "client_forwarder.hpp"
-//#include "server_forwarder.hpp"
 #include <boost/asio.hpp>
 #include <memory>
-#include <array>
 
 
 namespace ACProxy {
-class ClientForwarder;
-class ServerForwarder;
-class Forwarder;
+
+class LocalForwarder;
+class RemoteForwarder;
 class Connection : public std::enable_shared_from_this<Connection>,
                    private boost::noncopyable {
-    friend class Forwarder; // FIXME
 public:
     explicit Connection(boost::asio::io_service& io_service);
+    ~Connection() noexcept;
 
     boost::asio::ip::tcp::socket& socket();
 
@@ -25,29 +21,13 @@ public:
 
     boost::asio::io_service& getIOService();
 
-    std::shared_ptr<ServerForwarder> getServerForwarder();
+    std::shared_ptr<RemoteForwarder> getRemoteForwarder();
 
-    std::shared_ptr<ClientForwarder> getClientForwarder();
+    std::shared_ptr<LocalForwarder> getLocalForwarder();
 
 private:
-    void handleHeaderRead(const boost::system::error_code& e,
-                          std::size_t bytes_transferred);
-
-    void handleBodyRead(const boost::system::error_code& e,
-                        std::size_t bytes_transferred);
-
-    void handleReply(const boost::system::error_code& e,
-                     std::size_t bytes_transferred);
-
-    void reply(std::string data);
-
-    void forward();
-
-    boost::asio::io_service::strand strand_;
-    boost::asio::ip::tcp::socket socket_;
-    boost::asio::streambuf buffer_;
-    Http::Request request_;
-    std::shared_ptr<Forwarder> fwd_;
-    std::size_t content_body_remain = 0;
+    boost::asio::io_service& io_service_;
+    std::shared_ptr<LocalForwarder> local_fwd_;
+    std::shared_ptr<RemoteForwarder> remote_fwd_;
 };
 }

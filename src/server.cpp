@@ -46,6 +46,9 @@ void Server::startAccept() {
 
     new_connection_ =
         std::make_shared<Connection>(io_service_);
+
+    connections_.push_back(new_connection_);
+
     acceptor_.async_accept(new_connection_->socket(),
                            boost::bind(&Server::handleAccept, this,  // FIXME
                                        boost::asio::placeholders::error));

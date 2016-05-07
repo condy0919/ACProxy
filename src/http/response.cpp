@@ -1,5 +1,6 @@
 #include "response.hpp"
 #include <boost/lexical_cast.hpp>
+#include <sstream>
 
 namespace Http {
 bool Response::isKeepAlive() const {
@@ -26,6 +27,16 @@ const std::size_t Response::getContentLength() const {
 
 const std::string Response::getContent() const {
     return content.value_or("");
+}
+
+void Response::setNoKeepAlive() {
+    headers["Connection"] = "close";
+}
+
+std::string Response::toBuffer() const {
+    std::ostringstream oss;
+    oss << *this;
+    return oss.str();
 }
 
 std::ostream& operator<<(std::ostream& os, const Response& resp) {

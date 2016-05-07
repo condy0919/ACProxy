@@ -1,7 +1,7 @@
 #include "log.hpp"
 #include "connection.hpp"
-#include "client_forwarder.hpp"
-#include "server_forwarder.hpp"
+#include "local_fwd.hpp"
+#include "remote_fwd.hpp"
 #include <boost/bind.hpp>
 #include <cstring>
 #include <sys/types.h>
@@ -9,7 +9,8 @@
 
 namespace ACProxy {
 
-ClientForwarder::ClientForwarder(std::observer_ptr<Connection> conn)
+//LocalForwarder::LocalForwarder(std::shared_ptr<Connection> conn)
+LocalForwarder::LocalForwarder(std::observer_ptr<Connection> conn)
     : strand_(conn->getIOService()),
       socket_(
           std::make_shared<boost::asio::ip::tcp::socket>(conn->getIOService())),
@@ -17,36 +18,44 @@ ClientForwarder::ClientForwarder(std::observer_ptr<Connection> conn)
     //socket_.non_blocking(true); // XXX
 }
 
-std::shared_ptr<boost::asio::ip::tcp::socket> ClientForwarder::socket() {
+LocalForwarder::~LocalForwarder() noexcept {
+    LOG_ACPROXY_INFO("LocalForwarder is freed...");
+}
+
+std::shared_ptr<boost::asio::ip::tcp::socket> LocalForwarder::socket() {
     return socket_;
 }
 
-void ClientForwarder::send(std::string data) {
+void LocalForwarder::start() {
+    getHeaders();
+}
+
+void LocalForwarder::send(std::string data) {
     boost::asio::async_write(
         *socket_, boost::asio::buffer(data.data(), data.size()),
-        strand_.wrap(boost::bind(&ClientForwarder::sendHandle,
+        strand_.wrap(boost::bind(&LocalForwarder::sendHandle,
                                  shared_from_this(),
                                  boost::asio::placeholders::error)));
 }
 
-void ClientForwarder::sendHandle(const boost::system::error_code& e) {
+void LocalForwarder::sendHandle(const boost::system::error_code& e) {
     if (!e) {
         LOG_ACPROXY_INFO("send response to client success");
     } else {
         LOG_ACPROXY_ERROR("send response to client error ", e.message());
     }
-    socket_->close();
+    //socket_->close();
 }
 
-void ClientForwarder::getHeaders() {
+void LocalForwarder::getHeaders() {
     socket_->async_read_some(
         boost::asio::null_buffers(),
-        strand_.wrap(boost::bind(&ClientForwarder::getHeadersHandle,
+        strand_.wrap(boost::bind(&LocalForwarder::getHeadersHandle,
                                  shared_from_this(),
                                  boost::asio::placeholders::error)));
 }
 
-void ClientForwarder::getHeadersHandle(const boost::system::error_code& e) {
+void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
     if (e) {
         LOG_ACPROXY_ERROR("get http request header error ", e.message());
         return;
@@ -101,8 +110,14 @@ void ClientForwarder::getHeadersHandle(const boost::system::error_code& e) {
 
         if (!request_.isConnectMethod()) {
             request_.setNoKeepAlive();
+            //LOG_ACPROXY_DEBUG("request = ", request_.toBuffer());
+
+            std::string host = request_.getHost();
+            int port = request_.getPort();
+            conn_->getRemoteForwarder()->connect(host, port);
+
             // forward header to server
-            conn_->getServerForwarder()->send(request_.toBuffer());
+            conn_->getRemoteForwarder()->send(request_.toBuffer());
         }
 
         getBody();
@@ -113,22 +128,30 @@ void ClientForwarder::getHeadersHandle(const boost::system::error_code& e) {
     }
 }
 
-void ClientForwarder::getBody() {
+void LocalForwarder::getBody() {
     boost::asio::async_read(
         *socket_, buffer_, boost::asio::transfer_at_least(1),
-        strand_.wrap(boost::bind(&ClientForwarder::getBodyHandle,
-                                 shared_from_this(),
-                                 boost::asio::placeholders::error)));
+        strand_.wrap(
+            boost::bind(&LocalForwarder::getBodyHandle, shared_from_this(),
+                        boost::asio::placeholders::error,
+                        boost::asio::placeholders::bytes_transferred)));
 }
 
-void ClientForwarder::getBodyHandle(const boost::system::error_code& e) {
+void LocalForwarder::getBodyHandle(const boost::system::error_code& e,
+                                   std::size_t bytes_transferred) {
+    if (bytes_transferred == 0) {
+        LOG_ACPROXY_INFO("no http request body...");
+        return;
+    }
     if (!e) {
+        LOG_ACPROXY_INFO("starting to read http request body...");
+
         // TODO zero-copy
         boost::asio::streambuf::const_buffers_type bufs = buffer_.data();
         std::string str(boost::asio::buffers_begin(bufs),
                         boost::asio::buffers_end(bufs));
         buffer_.consume(str.size());
-        conn_->getServerForwarder()->send(str);
+        conn_->getRemoteForwarder()->send(str);
         getBody();
     } else if (e != boost::asio::error::eof) {
         LOG_ACPROXY_ERROR("read http request content body error ", e.message());
