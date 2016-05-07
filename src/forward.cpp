@@ -20,6 +20,8 @@ void Forwarder::start() {
     const std::string port =
         boost::lexical_cast<std::string>(request_.getPort());
 
+    LOG_ACPROXY_DEBUG("host = ", host, " port = ", port);
+
     boost::asio::ip::tcp::resolver resolver(service_);
     boost::asio::ip::tcp::resolver::query query(host, port);
     boost::asio::ip::tcp::resolver::iterator iter = resolver.resolve(query);
@@ -92,23 +94,18 @@ void Forwarder::handleHeaderRead(const boost::system::error_code& e,
     std::size_t discard = std::distance(str.begin(), header_last);
     buffer_.consume(discard);
 
+    content_body_remain = response_.getContentLength();
+
     bool still_need_read = (request_.method != "HEAD");
     LOG_ACPROXY_DEBUG("the whole http response = ");
     std::cout << response_;
     LOG_ACPROXY_DEBUG("http response ends");
+    forwardHeaderToClient();
     if (!still_need_read) {
         LOG_ACPROXY_INFO(
             "http response header completes, starting forward to client");
-        forwardToClient();
     } else {
         // content body is missing
-        std::size_t readed = bytes_transferred - discard;
-        std::size_t still_need = response_.getContentLength() - readed;
-        content_body_remain = still_need;
-        LOG_ACPROXY_DEBUG("bytes_transferred = ", bytes_transferred);
-        LOG_ACPROXY_DEBUG("discard = ", discard);
-        LOG_ACPROXY_DEBUG("readed = ", readed);
-        LOG_ACPROXY_DEBUG("still need read ", still_need, " bytes");
         LOG_ACPROXY_DEBUG("http response content body");
         boost::asio::async_read(
             sock_, buffer_, boost::asio::transfer_at_least(1),
@@ -128,9 +125,9 @@ void Forwarder::handleBodyRead(const boost::system::error_code& e,
         return;
     }
 
-    content_body_remain -= bytes_transferred;
+    //content_body_remain -= bytes_transferred;
     // forward data to client
-    forwardToClient();
+    forwardBodyToClient();
 
     if (content_body_remain > 0) {
         // register again
@@ -141,58 +138,25 @@ void Forwarder::handleBodyRead(const boost::system::error_code& e,
                             boost::asio::placeholders::error,
                             boost::asio::placeholders::bytes_transferred)));
     }
-
-
-    //if (e == boost::asio::error::eof) {
-    //    // concatenate http response content body
-    //    boost::asio::streambuf::const_buffers_type bufs = buffer_.data();
-    //    std::string content(boost::asio::buffers_begin(bufs),
-    //            boost::asio::buffers_end(bufs));
-    //    buffer_.consume(content.size());
-    //    response_.content = content;
-    //    LOG_ACPROXY_INFO(
-    //        "http response content body completes, starting forward to client");
-    //    forwardToClient();
-    //    return;
-    //}
-
-    //if (e) {
-    //    LOG_ACPROXY_ERROR("read http response body error, ", e.message());
-    //    return;
-    //}
-
-    //LOG_ACPROXY_DEBUG("read http response body success, bytes = ",
-    //                  bytes_transferred);
-    ////std::cout << &buffer_;
-    //boost::asio::async_read(sock_, buffer_, boost::asio::transfer_at_least(1),
-    //                        strand_.wrap(boost::bind(
-    //                            &Forwarder::handleBodyRead, shared_from_this(),
-    //                            boost::asio::placeholders::error,
-    //                            boost::asio::placeholders::bytes_transferred)));
 }
 
-void Forwarder::forwardToClient() {
-    LOG_ACPROXY_INFO("register send request callback of quirier");
-    // FIXME just test
-    static bool flag = true;
-    std::string content;
-    if (flag) {
-        std::ostringstream oss;
-        oss << response_;
-        content = oss.str();
-        flag = false;
-    }
+void Forwarder::forwardBodyToClient() {
+    LOG_ACPROXY_INFO("register send response body callback of quirier");
     boost::asio::streambuf::const_buffers_type bufs = buffer_.data();
-    content.insert(content.end(), boost::asio::buffers_begin(bufs),
-                   boost::asio::buffers_end(bufs));
-    buffer_.consume(0x7fffffff);
+    std::string content(boost::asio::buffers_begin(bufs),
+                        boost::asio::buffers_end(bufs));
+    buffer_.consume(content.size());
 
-    // CAUTIOUS
-    // register callback for src connection
-    boost::asio::async_write(
-        conn_->socket(), boost::asio::buffer(content.data(), content.size()),
-        strand_.wrap(boost::bind(
-            &Connection::handleWrite, conn_, boost::asio::placeholders::error,
-            boost::asio::placeholders::bytes_transferred)));
+    content_body_remain -= content.size();
+
+    conn_->reply(content);
+}
+
+void Forwarder::forwardHeaderToClient() {
+    LOG_ACPROXY_INFO("register send response header callback of quirier");
+    std::ostringstream oss;
+    oss << response_;
+    std::string data = oss.str();
+    conn_->reply(data);
 }
 }

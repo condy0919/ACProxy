@@ -62,7 +62,9 @@ void Connection::handleHeaderRead(const boost::system::error_code& e,
         if (std::distance(content_start, str.end()) < content_length) {
             still_need_read = true;
         }
-        LOG_ACPROXY_INFO(request_.method, " has content body, still_need_read = ", still_need_read);
+        LOG_ACPROXY_INFO(request_.method,
+                         " has content body, still_need_read = ",
+                         still_need_read);
     } else if (!res) {
         still_need_read = true;
         LOG_ACPROXY_INFO("http request header incomplete, read again");
@@ -84,15 +86,18 @@ void Connection::handleHeaderRead(const boost::system::error_code& e,
         // forward request to source website
         forward();
     } else {
+        content_body_remain = request_.getContentLength();
+            //request_.getContentLength() - (bytes_transferred - discard);
         // GUARANTEE NO SYNTAX ERROR IN HEADER
         // content body is missing
-        boost::asio::async_read_until(
-            socket_, buffer_, Common::MiscStrings::crlfcrlf,
+        boost::asio::async_read(
+            socket_, buffer_, boost::asio::transfer_at_least(1),
             strand_.wrap(
                 boost::bind(&Connection::handleBodyRead, shared_from_this(),
                             boost::asio::placeholders::error,
                             boost::asio::placeholders::bytes_transferred)));
-        LOG_ACPROXY_INFO("register callback of reading http request content body");
+        LOG_ACPROXY_INFO(
+            "register callback of reading http request content body");
     }
 }
 
@@ -104,24 +109,31 @@ void Connection::handleBodyRead(const boost::system::error_code& e,
         return;
     }
 
-    // content body read completely
+    // transfer buffer_ to request_.content
     boost::asio::streambuf::const_buffers_type bufs = buffer_.data();
     std::string content(boost::asio::buffers_begin(bufs),
                         boost::asio::buffers_end(bufs));
     buffer_.consume(content.size());
-    request_.content = content;
+    content_body_remain -= content.size();
 
-    std::ostringstream oss;
-    oss << request_;
-    std::string req = oss.str();
+    if (content_body_remain > 0) {
+        // read again
+        boost::asio::async_read(
+            socket_, buffer_, boost::asio::transfer_at_least(1),
+            strand_.wrap(
+                boost::bind(&Connection::handleBodyRead, shared_from_this(),
+                            boost::asio::placeholders::error,
+                            boost::asio::placeholders::bytes_transferred)));
+    } else if (content_body_remain == 0) {
+        std::ostringstream oss;
+        oss << request_;
+        std::string req = oss.str();
 
-    LOG_ACPROXY_DEBUG("the whole http request =");
-    std::cout << req;
-    LOG_ACPROXY_DEBUG("request ends");
-
-    // FIXME
-    // forward request to source website
-    forward();
+        LOG_ACPROXY_DEBUG("the whole http request =");
+        std::cout << req;
+        LOG_ACPROXY_DEBUG("request ends");
+        forward();
+    }
 }
 
 void Connection::forward() {
@@ -130,7 +142,7 @@ void Connection::forward() {
     fwd_->start();
 }
 
-void Connection::handleWrite(const boost::system::error_code& e,
+void Connection::handleReply(const boost::system::error_code& e,
                              std::size_t bytes_transferred) {
     if (e) {
         LOG_ACPROXY_ERROR("reply http resp to client error, ", e.message());
@@ -141,4 +153,27 @@ void Connection::handleWrite(const boost::system::error_code& e,
 
     // shutdown socket
 }
+
+void Connection::reply(std::string data) {
+    boost::asio::async_write(
+        socket_, boost::asio::buffer(data.data(), data.size()),
+        strand_.wrap(
+            boost::bind(&Connection::handleReply, shared_from_this(),
+                        boost::asio::placeholders::error,
+                        boost::asio::placeholders::bytes_transferred)));
+}
+
+boost::asio::io_service& Connection::getIOService() {
+    //return io_service_;
+}
+
+std::shared_ptr<ServerForwarder> Connection::getServerForwarder() {
+
+}
+
+std::shared_ptr<ClientForwarder> Connection::getClientForwarder() {
+
+}
+
+
 }

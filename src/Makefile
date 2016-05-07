@@ -3,7 +3,7 @@ OBJS = $(patsubst %.cpp, %.o, $(SRCS))
 
 PROC = acproxy
 
-LIBS = -pthread -lboost_system -pthread
+LIBS = -pthread -lboost_system
 
 CXXFLAGS = -std=c++14 -g
 

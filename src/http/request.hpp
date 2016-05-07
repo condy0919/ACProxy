@@ -15,6 +15,7 @@ struct Request {
     std::string uri;
     std::string http_version;
     std::map<std::string, std::string> headers;
+    boost::optional<std::string> content;
 
     void setKeepAlive();
     void setNoKeepAlive();
@@ -22,8 +23,9 @@ struct Request {
     const std::string getHost() const;
     const int getPort() const;
     std::size_t getContentLength() const;
-
-    boost::optional<std::string> content;
+    void rewrite();
+    std::string toBuffer() const;
+    bool isConnectMethod() const;
 
     friend std::ostream& operator<<(std::ostream& os, const Request& req);
 };

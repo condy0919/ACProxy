@@ -3,3 +3,4 @@ acproxy
 src/*.o
 src/http/*.o
 demo/*
+src/.*

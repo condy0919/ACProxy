@@ -29,7 +29,9 @@ private:
     void handleBodyRead(const boost::system::error_code& e,
                         std::size_t bytes_transferred);
 
-    void forwardToClient();
+    void forwardBodyToClient();
+
+    void forwardHeaderToClient();
 
 private:
     std::shared_ptr<Connection> conn_;

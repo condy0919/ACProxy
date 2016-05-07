@@ -22,6 +22,10 @@ const std::string Request::getHost() const {
     auto iter = headers.find("Host");
     if (iter == headers.end())
         return {};
+    std::string::size_type pos = iter->second.find_first_of(":");
+    if (pos != std::string::npos) {
+        return iter->second.substr(0, pos);
+    }
     return iter->second;
 }
 
@@ -46,6 +50,22 @@ std::size_t Request::getContentLength() const {
     if (iter == headers.end())
         return 0;
     return boost::lexical_cast<std::size_t>(iter->second);
+}
+
+void Request::rewrite() {
+    std::string uri_ = uri;
+    std::string host = getHost();
+    // TODO
+}
+
+std::string Request::toBuffer() const {
+    std::ostringstream oss;
+    oss << *this;
+    return oss.str();
+}
+
+bool Request::isConnectMethod() const {
+    return method == "CONNECT";
 }
 
 std::ostream& operator<<(std::ostream& os, const Request& req) {
