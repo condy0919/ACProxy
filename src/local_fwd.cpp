@@ -9,7 +9,6 @@
 
 namespace ACProxy {
 
-//LocalForwarder::LocalForwarder(std::shared_ptr<Connection> conn)
 LocalForwarder::LocalForwarder(std::observer_ptr<Connection> conn)
     : strand_(conn->getIOService()),
       socket_(
@@ -67,6 +66,14 @@ void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
 
     auto fd = socket_->native_handle();
     ssize_t sz = ::recv(fd, buf, sizeof(buf), MSG_PEEK);
+    LOG_ACPROXY_DEBUG("sz of read http request header = ", sz);
+    if (sz < 0) {
+        LOG_ACPROXY_INFO("read http request header error");
+        return;
+    } else if (sz == 0) {
+        LOG_ACPROXY_INFO("client close socket");
+        return;
+    }
     const char* pos = (const char*)::memmem(buf, sz, "\r\n\r\n", 4);
     
     bool found = pos;
@@ -108,19 +115,32 @@ void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
             return;
         }
 
-        if (!request_.isConnectMethod()) {
-            request_.setNoKeepAlive();
-            //LOG_ACPROXY_DEBUG("request = ", request_.toBuffer());
+        request_.rewrite();
+        request_.setKeepAlive(false);
 
-            std::string host = request_.getHost();
-            int port = request_.getPort();
-            conn_->getRemoteForwarder()->connect(host, port);
+        //LOG_ACPROXY_DEBUG("request = \n", request_.toBuffer());
 
-            // forward header to server
-            conn_->getRemoteForwarder()->send(request_.toBuffer());
+        if (!request_.hasResponseBody()) {
+            conn_->getRemoteForwarder()->setResponseBody(false);
         }
 
-        getBody();
+        std::string host = request_.getHost();
+        int port = request_.getPort();
+        conn_->getRemoteForwarder()->connect(host, port);
+
+        if (!request_.isConnectMethod()) {
+            // forward header to server
+            conn_->getRemoteForwarder()->send(request_.toBuffer());
+        } else {
+            // no parse response header, get rawdata and forward instead
+            conn_->getRemoteForwarder()->setParseResponseHeader(false);
+            // send a fake 200 response in tunnel mode
+            send("HTTP/1.1 200 Connection Established\r\n\r\n");
+        }
+
+        if (request_.hasContentBody()) {
+            getBody();
+        }
     } else {
         // request header is not complete, read again
         LOG_ACPROXY_INFO("http request header not complete, read again");

@@ -9,7 +9,6 @@
 
 namespace ACProxy {
 
-//RemoteForwarder::RemoteForwarder(std::shared_ptr<Connection> conn)
 RemoteForwarder::RemoteForwarder(std::observer_ptr<Connection> conn)
     : strand_(conn->getIOService()),
       socket_(
@@ -42,6 +41,14 @@ void RemoteForwarder::connect(std::string host, int port) {
     socket_->connect(ep);
 }
 
+void RemoteForwarder::setResponseBody(bool on) noexcept {
+    has_response_body_ = on;
+}
+
+void RemoteForwarder::setParseResponseHeader(bool on) noexcept {
+    parse_response_header_ = on;
+}
+
 void RemoteForwarder::send(std::string data) {
     boost::asio::async_write(
         *socket_, boost::asio::buffer(data.data(), data.size()),
@@ -54,9 +61,43 @@ void RemoteForwarder::sendHandle(const boost::system::error_code& e) {
     if (!e) {
         LOG_ACPROXY_INFO(
             "send data to upstream success, starting recving http response...");
-        getHeaders();
+        if (get_header_once_) {
+            if (parse_response_header_) {
+                getHeaders();
+            } else {
+                getRawData();
+            }
+            get_header_once_ = false;
+        }
     } else {
         LOG_ACPROXY_ERROR("send data to upstream error ", e.message());
+    }
+}
+
+void RemoteForwarder::getRawData() {
+    boost::asio::async_read(
+        *socket_, boost::asio::buffer(raw_data_),
+        boost::asio::transfer_at_least(1),
+        strand_.wrap(
+            boost::bind(&RemoteForwarder::getRawDataHandle, shared_from_this(),
+                        boost::asio::placeholders::error,
+                        boost::asio::placeholders::bytes_transferred)));
+}
+
+void RemoteForwarder::getRawDataHandle(const boost::system::error_code& e,
+                                       std::size_t bytes_transferred) {
+    if (bytes_transferred == 0) {
+        LOG_ACPROXY_INFO("no response data...");
+        return;
+    }
+    if (!e) {
+        conn_->getLocalForwarder()->send(std::string(
+            raw_data_.data(), raw_data_.data() + bytes_transferred));
+        getRawData();
+    } else if (e != boost::asio::error::eof) {
+        LOG_ACPROXY_ERROR("read raw data error ", e.message());
+    } else {
+        LOG_ACPROXY_INFO("read raw data EOF");
     }
 }
 
@@ -80,6 +121,10 @@ void RemoteForwarder::getHeadersHandle(const boost::system::error_code& e) {
 
     auto fd = socket_->native_handle();
     ssize_t sz = ::recv(fd, buf, sizeof(buf), MSG_PEEK);
+    if (sz < 0) {
+        LOG_ACPROXY_ERROR("peek http response header error");
+        return;
+    }
     const char* pos = (const char*)::memmem(buf, sz, "\r\n\r\n", 4);
 
     bool found = pos;
@@ -117,16 +162,19 @@ void RemoteForwarder::getHeadersHandle(const boost::system::error_code& e) {
         bool res = phrase_parse(headers.begin(), headers.end(), grammar,
                                 boost::spirit::qi::ascii::blank, response_);
 
+        //LOG_ACPROXY_DEBUG("response = \n", response_.toBuffer());
+
         if (!res) {
             LOG_ACPROXY_ERROR("parse http response header error");
             return;
         }
 
         response_.setNoKeepAlive();
-        LOG_ACPROXY_DEBUG("response = ", response_.toBuffer());
         conn_->getLocalForwarder()->send(response_.toBuffer());
 
-        getBody();
+        if (has_response_body_) {
+            getBody();
+        }
     } else {
         LOG_ACPROXY_INFO("http response header not complete, read again");
         getHeaders();
@@ -156,7 +204,6 @@ void RemoteForwarder::getBodyHandle(const boost::system::error_code& e,
                         boost::asio::buffers_end(bufs));
         buffer_.consume(str.size());
         LOG_ACPROXY_DEBUG("send ", bytes_transferred, " bytes to LocalForwarder");
-        LOG_ACPROXY_DEBUG("address = ", (void*)conn_->getLocalForwarder().get());
         conn_->getLocalForwarder()->send(str);
         getBody();
         //socket_->close(); // TODO socket pool, no need to close

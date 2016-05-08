@@ -25,10 +25,6 @@ boost::asio::ip::tcp::socket& Connection::socket() {
 }
 
 void Connection::start() {
-    //auto self = shared_from_this();
-    //local_fwd_ = std::make_shared<LocalForwarder>(self);
-    //remote_fwd_ = std::make_shared<RemoteForwarder>(self);
-
     local_fwd_->start();
 }
 

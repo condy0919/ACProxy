@@ -5,8 +5,9 @@
 #include <boost/fusion/include/std_pair.hpp>
 #include <boost/optional.hpp>
 #include <ostream>
+#include <utility>
+#include <vector>
 #include <string>
-#include <map>
 
 namespace Http {
 
@@ -14,12 +15,14 @@ struct Request {
     std::string method;
     std::string uri;
     std::string http_version;
-    std::map<std::string, std::string> headers;
+    std::vector<std::pair<std::string, std::string>> headers;
+    //std::map<std::string, std::string> headers;
     boost::optional<std::string> content;
 
-    void setKeepAlive();
-    void setNoKeepAlive();
+    void setKeepAlive(bool on = true);
     bool isKeepAlive() const;
+    bool hasContentBody() const;
+    bool hasResponseBody() const;
     const std::string getHost() const;
     const int getPort() const;
     std::size_t getContentLength() const;
@@ -28,6 +31,10 @@ struct Request {
     bool isConnectMethod() const;
 
     friend std::ostream& operator<<(std::ostream& os, const Request& req);
+
+private:
+    void setHeader(std::string name, std::string value);
+    const std::string getHeader(std::string name) const;
 };
 
 template <typename Iter,
@@ -53,7 +60,7 @@ struct RequestHeaderGrammar
     }
 
 private:
-    boost::spirit::qi::rule<Iter, std::map<std::string, std::string>(), Skipper> fields;
+    boost::spirit::qi::rule<Iter, std::vector<std::pair<std::string, std::string>>(), Skipper> fields;
     boost::spirit::qi::rule<Iter, Request(), Skipper> http_header;
 
     // lexemes

@@ -17,16 +17,16 @@ struct Response {
     boost::optional<std::string> content;
 
     bool isKeepAlive() const;
+    void setNoKeepAlive();
     const std::string getContentType() const;
     const std::size_t getContentLength() const;
     const std::string getContent() const;
-    void setNoKeepAlive();
     std::string toBuffer() const;
 
     friend std::ostream& operator<<(std::ostream& os, const Response& resp);
 };
 
-template <typename Iter,
+template <typename Iter ,
           typename Skipper = boost::spirit::qi::ascii::blank_type>
 struct ResponseHeaderGrammar
     : boost::spirit::qi::grammar<Iter, Response(), Skipper> {
@@ -35,7 +35,7 @@ struct ResponseHeaderGrammar
                                            "ResponseHeaderGrammar Grammar") {
         http_ver = "HTTP/" >> +boost::spirit::qi::char_("0-9.");
         status = +boost::spirit::qi::digit;
-        desc = +boost::spirit::qi::graph;
+        desc = +~boost::spirit::qi::char_("\r\n");
 
         field_key = +boost::spirit::qi::char_("0-9a-zA-Z-");
         field_value = +~boost::spirit::qi::char_("\r\n");
