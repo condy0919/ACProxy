@@ -117,7 +117,7 @@ void RemoteForwarder::getHeadersHandle(const boost::system::error_code& e) {
 
     LOG_ACPROXY_INFO("starting reading http response headers...");
 
-    static char buf[BUFSIZ];
+    char buf[1024]; // XXX
 
     auto fd = socket_->native_handle();
     ssize_t sz = ::recv(fd, buf, sizeof(buf), MSG_PEEK);
@@ -125,6 +125,7 @@ void RemoteForwarder::getHeadersHandle(const boost::system::error_code& e) {
         LOG_ACPROXY_ERROR("peek http response header error");
         return;
     }
+    //LOG_ACPROXY_DEBUG("remote buf = \n", buf);
     const char* pos = (const char*)::memmem(buf, sz, "\r\n\r\n", 4);
 
     bool found = pos;

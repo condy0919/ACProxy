@@ -37,7 +37,7 @@ struct ResponseHeaderGrammar
         status = +boost::spirit::qi::digit;
         desc = +~boost::spirit::qi::char_("\r\n");
 
-        field_key = +boost::spirit::qi::char_("0-9a-zA-Z-");
+        field_key = +boost::spirit::qi::char_("_0-9a-zA-Z-");
         field_value = +~boost::spirit::qi::char_("\r\n");
 
         fields = *(field_key >> ':' >> field_value >>

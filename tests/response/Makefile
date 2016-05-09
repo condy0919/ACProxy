@@ -5,7 +5,7 @@ PROC = acproxy
 
 LIBS = -pthread -lboost_system
 
-CXXFLAGS = -std=c++14 -g -ggdb
+CXXFLAGS = -std=c++14 -g -ggdb -I../../src/
 
 all: LINK
 

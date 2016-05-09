@@ -62,7 +62,7 @@ void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
     
     LOG_ACPROXY_INFO("starting reading http request headers...");
 
-    static char buf[BUFSIZ];
+    char buf[1024]; // XXX
 
     auto fd = socket_->native_handle();
     ssize_t sz = ::recv(fd, buf, sizeof(buf), MSG_PEEK);
