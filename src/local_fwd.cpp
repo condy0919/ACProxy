@@ -14,7 +14,7 @@ LocalForwarder::LocalForwarder(std::observer_ptr<Connection> conn)
       socket_(
           std::make_shared<boost::asio::ip::tcp::socket>(conn->getIOService())),
       conn_(conn) {
-    //socket_.non_blocking(true); // XXX
+    //socket_->non_blocking(true);  // XXX
 }
 
 LocalForwarder::~LocalForwarder() noexcept {
@@ -43,7 +43,7 @@ void LocalForwarder::sendHandle(const boost::system::error_code& e) {
     } else {
         LOG_ACPROXY_ERROR("send response to client error ", e.message());
     }
-    //socket_->close();
+    // socket_->close();
 }
 
 void LocalForwarder::getHeaders() {
@@ -59,10 +59,10 @@ void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
         LOG_ACPROXY_ERROR("get http request header error ", e.message());
         return;
     }
-    
+
     LOG_ACPROXY_INFO("starting reading http request headers...");
 
-    char buf[1024]; // XXX
+    char buf[1024];  // XXX
 
     auto fd = socket_->native_handle();
     ssize_t sz = ::recv(fd, buf, sizeof(buf), MSG_PEEK);
@@ -75,7 +75,7 @@ void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
         return;
     }
     const char* pos = (const char*)::memmem(buf, sz, "\r\n\r\n", 4);
-    
+
     bool found = pos;
     ssize_t diff = (found ? pos - buf + 4 : sz);
     if (!found) {
@@ -118,7 +118,7 @@ void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
         request_.rewrite();
         request_.setKeepAlive(false);
 
-        //LOG_ACPROXY_DEBUG("request = \n", request_.toBuffer());
+        // LOG_ACPROXY_DEBUG("request = \n", request_.toBuffer());
 
         if (!request_.hasResponseBody()) {
             conn_->getRemoteForwarder()->setResponseBody(false);
@@ -126,7 +126,13 @@ void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
 
         std::string host = request_.getHost();
         int port = request_.getPort();
-        conn_->getRemoteForwarder()->connect(host, port);
+        res = conn_->getRemoteForwarder()->connect(host, port);
+        if (!res) {
+            // XXX Maybe shutdowning socket is better
+            LOG_ACPROXY_INFO("connection timeout, send a fake 404 resp");
+            send("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n");
+            return;
+        }
 
         if (!request_.isConnectMethod()) {
             // forward header to server
@@ -142,8 +148,8 @@ void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
             getBody();
         }
     } else {
-        // request header is not complete, read again
-        LOG_ACPROXY_INFO("http request header not complete, read again");
+        // request header is incomplete, read again
+        LOG_ACPROXY_INFO("http request header incomplete, read again");
         getHeaders();
     }
 }

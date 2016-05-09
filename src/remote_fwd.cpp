@@ -4,8 +4,11 @@
 #include "local_fwd.hpp"
 #include <boost/bind.hpp>
 #include <boost/lexical_cast.hpp>
-#include <sys/types.h>
+#include <sys/select.h>
 #include <sys/socket.h>
+#include <sys/unistd.h>
+#include <sys/types.h>
+#include <sys/time.h>
 
 namespace ACProxy {
 
@@ -14,7 +17,7 @@ RemoteForwarder::RemoteForwarder(std::observer_ptr<Connection> conn)
       socket_(
           std::make_shared<boost::asio::ip::tcp::socket>(conn->getIOService())),
       conn_(conn) {
-    ;  //
+    //socket_->non_blocking(true);  // XXX
 }
 
 RemoteForwarder::~RemoteForwarder() noexcept {
@@ -29,7 +32,7 @@ void RemoteForwarder::socket(std::shared_ptr<boost::asio::ip::tcp::socket> sock)
     socket_ = sock;
 }
 
-void RemoteForwarder::connect(std::string host, int port) {
+bool RemoteForwarder::connect(std::string host, int port) {
     LOG_ACPROXY_DEBUG("host = ", host, " port = ", port);
 
     boost::asio::ip::tcp::resolver resolver(conn_->getIOService());
@@ -38,7 +41,40 @@ void RemoteForwarder::connect(std::string host, int port) {
     boost::asio::ip::tcp::endpoint ep = *iter;
 
     socket_->open(boost::asio::ip::tcp::v4());
-    socket_->connect(ep);
+
+    socket_->non_blocking(true);
+    // boost::asio, fvck you!
+    // @see https://svn.boost.org/trac/boost/ticket/9296
+    // socket_->connect(ep, ec);
+    auto fd = socket_->native_handle();
+    int ret = ::connect(fd, ep.data(), ::socklen_t(ep.size()));
+    if (ret == -1) {
+        const int err = errno;
+        LOG_ACPROXY_ERROR("return of connect = ", std::strerror(err));
+    }
+
+    // TODO CUSTOM IT
+    __extension__ struct timeval tv = {
+        .tv_sec = 1,
+        .tv_usec = 0
+    }; // 1000ms
+
+    ::fd_set wfds;
+    FD_ZERO(&wfds);
+    FD_SET(fd, &wfds);
+    ret = ::select(fd + 1, 0, &wfds, 0, &tv);
+    socket_->non_blocking(false);  // recover
+    if (ret == 1) {
+        LOG_ACPROXY_INFO("it connects");
+        return true;
+    } else if (ret == 0) {
+        LOG_ACPROXY_WARNING("failed to connect to ", host);
+        return false;
+    } else {
+        const int err = errno;
+        LOG_ACPROXY_ERROR("unknown error happens: ", std::strerror(err));
+        return false;
+    }
 }
 
 void RemoteForwarder::setResponseBody(bool on) noexcept {
@@ -170,14 +206,14 @@ void RemoteForwarder::getHeadersHandle(const boost::system::error_code& e) {
             return;
         }
 
-        response_.setNoKeepAlive();
+        response_.setKeepAlive(false);
         conn_->getLocalForwarder()->send(response_.toBuffer());
 
         if (has_response_body_) {
             getBody();
         }
     } else {
-        LOG_ACPROXY_INFO("http response header not complete, read again");
+        LOG_ACPROXY_INFO("http response header incomplete, read again");
         getHeaders();
     }
 }

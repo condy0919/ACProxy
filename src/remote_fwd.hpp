@@ -19,7 +19,7 @@ public:
     std::shared_ptr<boost::asio::ip::tcp::socket> socket();
     void socket(std::shared_ptr<boost::asio::ip::tcp::socket> sock);
 
-    void connect(std::string host, int port);
+    bool connect(std::string host, int port);
 
     void setResponseBody(bool on = true) noexcept;
     void setParseResponseHeader(bool on = true) noexcept;

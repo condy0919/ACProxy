@@ -22,6 +22,10 @@ bool Request::hasResponseBody() const {
 }
 
 const std::string Request::getHost() const {
+    if (method == "CONNECT") {
+        std::string::size_type pos = uri.find_first_of(":");
+        return uri.substr(0, pos);
+    }
     std::string host = getHeader("Host");
     std::string::size_type pos = host.find_first_of(":");
     return host.substr(0, pos);

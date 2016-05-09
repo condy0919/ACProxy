@@ -6,24 +6,29 @@
 #include <boost/optional.hpp>
 #include <ostream>
 #include <string>
-#include <map>
+#include <utility>
+#include <vector>
 
 namespace Http {
 struct Response {
     std::string http_version;
     std::string status_code;
     std::string description;
-    std::map<std::string, std::string> headers;
+    std::vector<std::pair<std::string, std::string>> headers;
     boost::optional<std::string> content;
 
     bool isKeepAlive() const;
-    void setNoKeepAlive();
+    void setKeepAlive(bool on = true);
     const std::string getContentType() const;
     const std::size_t getContentLength() const;
     const std::string getContent() const;
     std::string toBuffer() const;
 
     friend std::ostream& operator<<(std::ostream& os, const Response& resp);
+
+private:
+    void setHeader(std::string name, std::string value);
+    const std::string getHeader(std::string name) const;
 };
 
 template <typename Iter ,
@@ -49,7 +54,7 @@ struct ResponseHeaderGrammar
     }
 
 private:
-    boost::spirit::qi::rule<Iter, std::map<std::string, std::string>(), Skipper> fields;
+    boost::spirit::qi::rule<Iter, std::vector<std::pair<std::string, std::string>>(), Skipper> fields;
     boost::spirit::qi::rule<Iter, Response(), Skipper> http_header;
 
     // lexemes
