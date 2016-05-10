@@ -11,6 +11,7 @@
 #include <vector>
 
 namespace ACProxy {
+
 Connection::Connection(boost::asio::io_service& io_service)
     : io_service_(io_service),
       local_fwd_(std::make_shared<LocalForwarder>(this)),
@@ -26,6 +27,15 @@ boost::asio::ip::tcp::socket& Connection::socket() {
 
 void Connection::start() {
     local_fwd_->start();
+}
+
+void Connection::close(Connection::CloseType t) {
+    if ((t & Local) && local_fwd_->socket()->is_open()) {
+        local_fwd_->socket()->close();
+    }
+    if ((t & Remote) && remote_fwd_->socket()->is_open()) {
+        remote_fwd_->socket()->close();
+    }
 }
 
 boost::asio::io_service& Connection::getIOService() {

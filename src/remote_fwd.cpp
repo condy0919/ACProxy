@@ -4,11 +4,11 @@
 #include "local_fwd.hpp"
 #include <boost/bind.hpp>
 #include <boost/lexical_cast.hpp>
-#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/unistd.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <poll.h>
 
 namespace ACProxy {
 
@@ -16,9 +16,7 @@ RemoteForwarder::RemoteForwarder(std::observer_ptr<Connection> conn)
     : strand_(conn->getIOService()),
       socket_(
           std::make_shared<boost::asio::ip::tcp::socket>(conn->getIOService())),
-      conn_(conn) {
-    //socket_->non_blocking(true);  // XXX
-}
+      conn_(conn) {}
 
 RemoteForwarder::~RemoteForwarder() noexcept {
     LOG_ACPROXY_INFO("RemoteForwarder is freed...");
@@ -50,19 +48,16 @@ bool RemoteForwarder::connect(std::string host, int port) {
     int ret = ::connect(fd, ep.data(), ::socklen_t(ep.size()));
     if (ret == -1) {
         const int err = errno;
-        LOG_ACPROXY_ERROR("return of connect = ", std::strerror(err));
+        LOG_ACPROXY_WARNING("return of connect = ", std::strerror(err));
     }
 
-    // TODO CUSTOM IT
-    __extension__ struct timeval tv = {
-        .tv_sec = 1,
-        .tv_usec = 0
-    }; // 1000ms
-
-    ::fd_set wfds;
-    FD_ZERO(&wfds);
-    FD_SET(fd, &wfds);
-    ret = ::select(fd + 1, 0, &wfds, 0, &tv);
+    __extension__ struct pollfd fds = {
+        .fd = fd,
+        .events = POLLOUT,
+        .revents = 0
+    };
+    // 1000ms
+    ret = ::poll(&fds, 1, 1000); // TODO CUSTOM IT
     socket_->non_blocking(false);  // recover
     if (ret == 1) {
         LOG_ACPROXY_INFO("it connects");
@@ -107,6 +102,7 @@ void RemoteForwarder::sendHandle(const boost::system::error_code& e) {
         }
     } else {
         LOG_ACPROXY_ERROR("send data to upstream error ", e.message());
+        conn_->close();
     }
 }
 
@@ -124,6 +120,7 @@ void RemoteForwarder::getRawDataHandle(const boost::system::error_code& e,
                                        std::size_t bytes_transferred) {
     if (bytes_transferred == 0) {
         LOG_ACPROXY_INFO("no response data...");
+        conn_->close();
         return;
     }
     if (!e) {
@@ -132,8 +129,10 @@ void RemoteForwarder::getRawDataHandle(const boost::system::error_code& e,
         getRawData();
     } else if (e != boost::asio::error::eof) {
         LOG_ACPROXY_ERROR("read raw data error ", e.message());
+        conn_->close();
     } else {
         LOG_ACPROXY_INFO("read raw data EOF");
+        conn_->close();
     }
 }
 
@@ -148,6 +147,7 @@ void RemoteForwarder::getHeaders() {
 void RemoteForwarder::getHeadersHandle(const boost::system::error_code& e) {
     if (e) {
         LOG_ACPROXY_ERROR("get http response header error ", e.message());
+        conn_->close();
         return;
     }
 
@@ -158,7 +158,14 @@ void RemoteForwarder::getHeadersHandle(const boost::system::error_code& e) {
     auto fd = socket_->native_handle();
     ssize_t sz = ::recv(fd, buf, sizeof(buf), MSG_PEEK);
     if (sz < 0) {
+        const int err = errno;
+        if (err == EAGAIN) {
+            LOG_ACPROXY_INFO("http response header read again...");
+            getHeaders();
+            return;
+        }
         LOG_ACPROXY_ERROR("peek http response header error");
+        conn_->close();
         return;
     }
     //LOG_ACPROXY_DEBUG("remote buf = \n", buf);
@@ -203,6 +210,7 @@ void RemoteForwarder::getHeadersHandle(const boost::system::error_code& e) {
 
         if (!res) {
             LOG_ACPROXY_ERROR("parse http response header error");
+            conn_->close();
             return;
         }
 
@@ -231,6 +239,7 @@ void RemoteForwarder::getBodyHandle(const boost::system::error_code& e,
                                     std::size_t bytes_transferred) {
     if (bytes_transferred == 0) {
         LOG_ACPROXY_INFO("no http response body...");
+        conn_->close();
         return;
     }
 
@@ -246,8 +255,10 @@ void RemoteForwarder::getBodyHandle(const boost::system::error_code& e,
         //socket_->close(); // TODO socket pool, no need to close
     } else if (e != boost::asio::error::eof) {
         LOG_ACPROXY_ERROR("read http response content body error ", e.message());
+        conn_->close();
     } else {
         LOG_ACPROXY_INFO("http response content body EOF");
+        conn_->close();
     }
 }
 }

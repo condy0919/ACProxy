@@ -4,7 +4,6 @@
 #include <boost/asio.hpp>
 #include <memory>
 
-
 namespace ACProxy {
 
 class LocalForwarder;
@@ -18,6 +17,9 @@ public:
     boost::asio::ip::tcp::socket& socket();
 
     void start();
+
+    enum CloseType { Local = 0x1, Remote = 0x2, Both = Local | Remote };
+    void close(CloseType t = Both);
 
     boost::asio::io_service& getIOService();
 
