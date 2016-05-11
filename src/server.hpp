@@ -1,6 +1,7 @@
 #pragma once
 
 #include "connection.hpp"
+#include "connection_mgr.hpp"
 #include <boost/noncopyable.hpp>
 #include <boost/asio.hpp>
 #include <string>
@@ -26,7 +27,6 @@ private:
     boost::asio::signal_set signals_;
     boost::asio::ip::tcp::acceptor acceptor_;
     std::shared_ptr<Connection> new_connection_;
-
-    std::vector<std::shared_ptr<Connection>> connections_;
+    ConnectionManager conn_mgr_;
 };
 }

@@ -19,7 +19,7 @@ public:
     };
 
 private:
-    std::ostringstream buffer;
+    std::stringstream buffer;
     const unsigned long long mask;
     const char* file;
     std::size_t line;

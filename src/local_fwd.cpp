@@ -37,12 +37,12 @@ void LocalForwarder::send(std::string data) {
 
 void LocalForwarder::sendHandle(const boost::system::error_code& e) {
     if (!e) {
+        conn_->update();
         LOG_ACPROXY_INFO("send response to client success");
     } else {
         LOG_ACPROXY_ERROR("send response to client error ", e.message());
         conn_->close();
     }
-    // socket_->close();
 }
 
 void LocalForwarder::getHeaders() {
@@ -162,6 +162,7 @@ void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
         LOG_ACPROXY_INFO("http request header incomplete, read again");
         getHeaders();
     }
+    conn_->update();
 }
 
 void LocalForwarder::getBody() {
@@ -190,6 +191,7 @@ void LocalForwarder::getBodyHandle(const boost::system::error_code& e,
         buffer_.consume(str.size());
         conn_->getRemoteForwarder()->send(str);
         getBody();
+        conn_->update();
     } else if (e != boost::asio::error::eof) {
         LOG_ACPROXY_ERROR("read http request content body error ", e.message());
         conn_->close();

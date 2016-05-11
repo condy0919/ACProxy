@@ -45,9 +45,7 @@ void Server::startAccept() {
     LOG_ACPROXY_INFO("register ACCEPT event");
 
     new_connection_ =
-        std::make_shared<Connection>(io_service_);
-
-    connections_.push_back(new_connection_);
+        std::make_shared<Connection>(io_service_, conn_mgr_);
 
     acceptor_.async_accept(new_connection_->socket(),
                            boost::bind(&Server::handleAccept, this,  // FIXME
@@ -57,7 +55,7 @@ void Server::startAccept() {
 void Server::handleAccept(const boost::system::error_code& e) {
     if (!e) {
         LOG_ACPROXY_INFO("new connection established");
-        new_connection_->start();
+        conn_mgr_.start(new_connection_);
     }
     startAccept();
 }

@@ -100,6 +100,7 @@ void RemoteForwarder::sendHandle(const boost::system::error_code& e) {
             }
             get_header_once_ = false;
         }
+        conn_->update();
     } else {
         LOG_ACPROXY_ERROR("send data to upstream error ", e.message());
         conn_->close();
@@ -127,6 +128,7 @@ void RemoteForwarder::getRawDataHandle(const boost::system::error_code& e,
         conn_->getLocalForwarder()->send(std::string(
             raw_data_.data(), raw_data_.data() + bytes_transferred));
         getRawData();
+        conn_->update();
     } else if (e != boost::asio::error::eof) {
         LOG_ACPROXY_ERROR("read raw data error ", e.message());
         conn_->close();
@@ -224,6 +226,7 @@ void RemoteForwarder::getHeadersHandle(const boost::system::error_code& e) {
         LOG_ACPROXY_INFO("http response header incomplete, read again");
         getHeaders();
     }
+    conn_->update();
 }
 
 void RemoteForwarder::getBody() {
@@ -252,6 +255,7 @@ void RemoteForwarder::getBodyHandle(const boost::system::error_code& e,
         LOG_ACPROXY_DEBUG("send ", bytes_transferred, " bytes to LocalForwarder");
         conn_->getLocalForwarder()->send(str);
         getBody();
+        conn_->update();
         //socket_->close(); // TODO socket pool, no need to close
     } else if (e != boost::asio::error::eof) {
         LOG_ACPROXY_ERROR("read http response content body error ", e.message());

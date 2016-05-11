@@ -9,7 +9,7 @@
 namespace ACProxy {
 
 class LocalForwarder : public std::enable_shared_from_this<LocalForwarder>,
-                        private boost::noncopyable {
+                       private boost::noncopyable {
 public:
     explicit LocalForwarder(std::observer_ptr<Connection> conn);
     ~LocalForwarder() noexcept;

@@ -2,7 +2,6 @@
 #include <mutex>
 #include <ctime>
 #include <string>
-#include <chrono>
 #include <cstdio>
 #include <unistd.h>
 
@@ -25,28 +24,31 @@ std::mutex log_mutex;
 
 namespace ACProxy {
 Logger::~Logger() noexcept {
-    const static auto GetCurrentTime = []() -> std::string {
-        auto now = std::chrono::system_clock::now();
-        auto now_c = std::chrono::system_clock::to_time_t(now);
-        std::string ret = std::asctime(std::localtime(&now_c));
-        ret.pop_back();
-        return ret;
-    };
-
     const bool useColor = ::isatty(STDOUT_FILENO);
     const ColorInfo& info = infos[__builtin_ctz(mask)];
     std::string line;
     char tmp[128];
+    unsigned len;
 
-    line += GetCurrentTime();
-    line += " | ";
+    line.reserve(255);
+
+    len = sprintf(tmp, "%ld ", std::time(0));
+    line.append(tmp, len);
     if (useColor) {
-        sprintf(tmp, "\033[3%cm[%s]\033[0m %s:%d ", info.color, info.text, file, this->line);
+        len = sprintf(tmp, "\033[3%cm[%s]\033[0m %s:%d ", info.color, info.text, file, this->line);
+        line.append(tmp, len);
     } else {
-        sprintf(tmp, "[%s] %s:%d ", info.text, file, this->line);
+        len = sprintf(tmp, "[%s] %s:%d ", info.text, file, this->line);
+        line.append(tmp, len);
     }
-    line += tmp;
-    line += buffer.str();
+
+    char ch;
+    while (buffer.get(ch)) {
+        if (((unsigned char)ch + 1 <= 0x20) || (ch == 0x7f)) {
+            ch = ' ';
+        }
+        line.push_back(ch);
+    }
     line += '\n';
 
     std::lock_guard<std::mutex> lck(log_mutex);
