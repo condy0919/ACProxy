@@ -44,6 +44,7 @@ void Server::run() {
 void Server::startAccept() {
     LOG_ACPROXY_INFO("register ACCEPT event");
 
+    // TODO eliminate connection obj
     new_connection_ =
         std::make_shared<Connection>(io_service_, conn_mgr_);
 
@@ -62,6 +63,8 @@ void Server::handleAccept(const boost::system::error_code& e) {
 
 void Server::handleStop() {
     LOG_ACPROXY_INFO("stopping server...");
+    acceptor_.close();
+    conn_mgr_.stopAll();
     io_service_.stop();
 }
 }

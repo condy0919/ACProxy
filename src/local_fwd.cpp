@@ -9,13 +9,18 @@
 
 namespace ACProxy {
 
-LocalForwarder::LocalForwarder(std::observer_ptr<Connection> conn)
-    : strand_(conn->getIOService()),
+LocalForwarder::LocalForwarder(boost::asio::io_service::strand& strand,
+                               std::observer_ptr<Connection> conn)
+    : strand_(strand),
+      // strand_(conn->getIOService()),
       socket_(
           std::make_shared<boost::asio::ip::tcp::socket>(conn->getIOService())),
       conn_(conn) {}
 
 LocalForwarder::~LocalForwarder() noexcept {
+    if (socket_ && socket_->is_open()) {
+        socket_->close();
+    }
     LOG_ACPROXY_INFO("LocalForwarder is freed...");
 }
 
@@ -41,7 +46,7 @@ void LocalForwarder::sendHandle(const boost::system::error_code& e) {
         LOG_ACPROXY_INFO("send response to client success");
     } else {
         LOG_ACPROXY_ERROR("send response to client error ", e.message());
-        conn_->close();
+        //conn_->close();
     }
 }
 
@@ -56,7 +61,7 @@ void LocalForwarder::getHeaders() {
 void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
     if (e) {
         LOG_ACPROXY_ERROR("get http request header error ", e.message());
-        conn_->close();
+        //conn_->close();
         return;
     }
 
@@ -75,11 +80,11 @@ void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
             return;
         }
         LOG_ACPROXY_INFO("read http request header error");
-        conn_->close();
+        //conn_->close();
         return;
     } else if (sz == 0) {
         LOG_ACPROXY_INFO("client close socket");
-        conn_->close();
+        //conn_->close();
         return;
     }
     const char* pos = (const char*)::memmem(buf, sz, "\r\n\r\n", 4);
@@ -120,7 +125,7 @@ void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
                                 boost::spirit::qi::ascii::blank, request_);
         if (!res) {
             LOG_ACPROXY_ERROR("parse http request header error");
-            conn_->close();
+            //conn_->close();
             return;
         }
 
@@ -140,9 +145,10 @@ void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
             // XXX Maybe shutdowning socket is better
             LOG_ACPROXY_INFO("connection timeout, close it");
             //send("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n");
-            conn_->close();
+            //conn_->close();
             return;
         }
+        LOG_ACPROXY_DEBUG("connection complete");
 
         if (!request_.isConnectMethod()) {
             // forward header to server
@@ -167,7 +173,7 @@ void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
 
 void LocalForwarder::getBody() {
     boost::asio::async_read(
-        *socket_, buffer_, boost::asio::transfer_at_least(1),
+        *socket_, buffer_, boost::asio::transfer_at_least(0),
         strand_.wrap(
             boost::bind(&LocalForwarder::getBodyHandle, shared_from_this(),
                         boost::asio::placeholders::error,
@@ -178,7 +184,7 @@ void LocalForwarder::getBodyHandle(const boost::system::error_code& e,
                                    std::size_t bytes_transferred) {
     if (bytes_transferred == 0) {
         LOG_ACPROXY_INFO("no http request body...");
-        conn_->close();
+        //conn_->close();
         return;
     }
     if (!e) {
@@ -195,10 +201,10 @@ void LocalForwarder::getBodyHandle(const boost::system::error_code& e,
     } else if (e != boost::asio::error::eof &&
                e != boost::asio::error::connection_reset) {
         LOG_ACPROXY_ERROR("read http request content body error ", e.message());
-        conn_->close();
+        //conn_->close();
     } else {
         LOG_ACPROXY_INFO("http request content body EOF");
-        conn_->close();
+        //conn_->close();
     }
 }
 }

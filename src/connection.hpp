@@ -42,6 +42,7 @@ private:
 
 private:
     boost::asio::io_service& io_service_;
+    boost::asio::io_service::strand strand_;
     ConnectionManager& conn_mgr_;
     std::shared_ptr<LocalForwarder> local_fwd_;
     std::shared_ptr<RemoteForwarder> remote_fwd_;

@@ -12,13 +12,18 @@
 
 namespace ACProxy {
 
-RemoteForwarder::RemoteForwarder(std::observer_ptr<Connection> conn)
-    : strand_(conn->getIOService()),
+RemoteForwarder::RemoteForwarder(boost::asio::io_service::strand& strand,
+                                 std::observer_ptr<Connection> conn)
+    : strand_(strand),
+        //strand_(conn->getIOService()),
       socket_(
           std::make_shared<boost::asio::ip::tcp::socket>(conn->getIOService())),
       conn_(conn) {}
 
 RemoteForwarder::~RemoteForwarder() noexcept {
+    //if (socket_ && socket_->is_open()) {
+    //    socket_->close();
+    //}
     LOG_ACPROXY_INFO("RemoteForwarder is freed...");
 }
 
@@ -253,7 +258,7 @@ void RemoteForwarder::getBodyHandle(const boost::system::error_code& e,
         std::string str(boost::asio::buffers_begin(bufs),
                         boost::asio::buffers_end(bufs));
         buffer_.consume(str.size());
-        LOG_ACPROXY_DEBUG("send ", bytes_transferred, " bytes to LocalForwarder");
+        LOG_ACPROXY_DEBUG("send ", bytes_transferred, " bytes to client");
         conn_->getLocalForwarder()->send(str);
         getBody();
         conn_->update();

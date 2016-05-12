@@ -14,10 +14,11 @@ namespace ACProxy {
 Connection::Connection(boost::asio::io_service& io_service,
                        ConnectionManager& mgr)
     : io_service_(io_service),
+      strand_(io_service),
       conn_mgr_(mgr),
-      local_fwd_(std::make_shared<LocalForwarder>(this)),
-      remote_fwd_(std::make_shared<RemoteForwarder>(this)),
-      //is_finished_(false),
+      local_fwd_(std::make_shared<LocalForwarder>(strand_, this)),
+      remote_fwd_(std::make_shared<RemoteForwarder>(strand_, this)),
+      // is_finished_(false),
       timeout_(io_service) {
     timeout_.expires_at(boost::posix_time::pos_infin);
     timeout();
@@ -89,7 +90,10 @@ void Connection::timeout() {
         boost::asio::deadline_timer::traits_type::now()) {
         LOG_ACPROXY_INFO("connection timeout 10s, need to be closed");
         // stop this connection
-        conn_mgr_.stop(shared_from_this()); // FIXME
+        auto ptr = shared_from_this();
+        conn_mgr_.stop(ptr); // FIXME
+        LOG_ACPROXY_DEBUG("use_count = ", ptr.use_count());
+        LOG_ACPROXY_INFO("connection stop success");
         timeout_.expires_at(boost::posix_time::pos_infin);
         return;
     }

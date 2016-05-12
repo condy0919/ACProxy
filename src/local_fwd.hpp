@@ -11,7 +11,8 @@ namespace ACProxy {
 class LocalForwarder : public std::enable_shared_from_this<LocalForwarder>,
                        private boost::noncopyable {
 public:
-    explicit LocalForwarder(std::observer_ptr<Connection> conn);
+    explicit LocalForwarder(boost::asio::io_service::strand& strand,
+                            std::observer_ptr<Connection> conn);
     ~LocalForwarder() noexcept;
 
     std::shared_ptr<boost::asio::ip::tcp::socket> socket();
@@ -33,7 +34,7 @@ private:
                        std::size_t bytes_transferred);
 
 private:
-    boost::asio::io_service::strand strand_;
+    boost::asio::io_service::strand& strand_;
     std::shared_ptr<boost::asio::ip::tcp::socket> socket_;
     Http::Request request_;
 

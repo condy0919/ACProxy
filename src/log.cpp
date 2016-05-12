@@ -4,6 +4,7 @@
 #include <string>
 #include <cstdio>
 #include <unistd.h>
+#include <sys/syscall.h>
 
 namespace {
 struct ColorInfo {
@@ -33,6 +34,8 @@ Logger::~Logger() noexcept {
     line.reserve(255);
 
     len = sprintf(tmp, "%ld ", std::time(0));
+    line.append(tmp, len);
+    len = sprintf(tmp, "%d ", syscall(SYS_gettid));
     line.append(tmp, len);
     if (useColor) {
         len = sprintf(tmp, "\033[3%cm[%s]\033[0m %s:%d ", info.color, info.text, file, this->line);
