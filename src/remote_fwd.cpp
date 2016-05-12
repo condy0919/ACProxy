@@ -129,7 +129,8 @@ void RemoteForwarder::getRawDataHandle(const boost::system::error_code& e,
             raw_data_.data(), raw_data_.data() + bytes_transferred));
         getRawData();
         conn_->update();
-    } else if (e != boost::asio::error::eof) {
+    } else if (e != boost::asio::error::eof &&
+               boost::asio::error::connection_reset) {
         LOG_ACPROXY_ERROR("read raw data error ", e.message());
         conn_->close();
     } else {
@@ -257,7 +258,8 @@ void RemoteForwarder::getBodyHandle(const boost::system::error_code& e,
         getBody();
         conn_->update();
         //socket_->close(); // TODO socket pool, no need to close
-    } else if (e != boost::asio::error::eof) {
+    } else if (e != boost::asio::error::eof &&
+               e != boost::asio::error::connection_reset) {
         LOG_ACPROXY_ERROR("read http response content body error ", e.message());
         conn_->close();
     } else {

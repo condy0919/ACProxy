@@ -5,6 +5,7 @@
 #include <boost/asio.hpp>
 #include <memory>
 #include <atomic>
+#include <mutex>
 
 namespace ACProxy {
 
@@ -44,7 +45,8 @@ private:
     ConnectionManager& conn_mgr_;
     std::shared_ptr<LocalForwarder> local_fwd_;
     std::shared_ptr<RemoteForwarder> remote_fwd_;
-    std::atomic<bool> is_finished_;
+    std::once_flag close_local_flag_, close_remote_flag_;
+    //std::atomic<bool> is_finished_;
 
     boost::asio::deadline_timer timeout_;
 };

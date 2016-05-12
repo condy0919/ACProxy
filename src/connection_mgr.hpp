@@ -3,6 +3,7 @@
 #include "connection.hpp"
 #include <boost/noncopyable.hpp>
 #include <memory>
+#include <mutex>
 #include <set>
 
 namespace ACProxy {
@@ -18,6 +19,7 @@ public:
     void stopAll();
 
 private:
+    std::mutex mtx;
     std::set<std::shared_ptr<Connection>> conns_;
 };
 }

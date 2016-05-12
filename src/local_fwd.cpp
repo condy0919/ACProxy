@@ -192,7 +192,8 @@ void LocalForwarder::getBodyHandle(const boost::system::error_code& e,
         conn_->getRemoteForwarder()->send(str);
         getBody();
         conn_->update();
-    } else if (e != boost::asio::error::eof) {
+    } else if (e != boost::asio::error::eof &&
+               e != boost::asio::error::connection_reset) {
         LOG_ACPROXY_ERROR("read http request content body error ", e.message());
         conn_->close();
     } else {

@@ -8,7 +8,6 @@
 #include <algorithm>
 #include <sstream>
 #include <cstring>
-#include <vector>
 
 namespace ACProxy {
 
@@ -18,7 +17,7 @@ Connection::Connection(boost::asio::io_service& io_service,
       conn_mgr_(mgr),
       local_fwd_(std::make_shared<LocalForwarder>(this)),
       remote_fwd_(std::make_shared<RemoteForwarder>(this)),
-      is_finished_(false),
+      //is_finished_(false),
       timeout_(io_service) {
     timeout_.expires_at(boost::posix_time::pos_infin);
     timeout();
@@ -48,11 +47,11 @@ void Connection::update() {
 }
 
 void Connection::close(Connection::CloseType t) {
-    if (is_finished_) {
-        return;
-    }
+    //if (is_finished_) {
+    //    return;
+    //}
 
-    is_finished_ = true;
+    //is_finished_ = true;
     //auto fd1 = local_fwd_->socket()->native_handle();
     //auto fd2 = remote_fwd_->socket()->native_handle();
     //auto is1 = local_fwd_->socket()->is_open();
@@ -61,14 +60,14 @@ void Connection::close(Connection::CloseType t) {
     //LOG_ACPROXY_DEBUG("is_open = ", is1, ", ", is2);
 
     if ((t & Local) && local_fwd_ && local_fwd_->socket()->is_open()) {
-        local_fwd_->socket()->close();
-        //std::call_once(close_local_flag_,
-        //               [&]() { local_fwd_->socket()->close(); });
+        //local_fwd_->socket()->close();
+        std::call_once(close_local_flag_,
+                       [&]() { local_fwd_->socket()->close(); });
     }
     if ((t & Remote) && remote_fwd_ && remote_fwd_->socket()->is_open()) {
-        remote_fwd_->socket()->close();
-        //std::call_once(close_remote_flag_,
-        //               [&]() { remote_fwd_->socket()->close(); });
+        //remote_fwd_->socket()->close();
+        std::call_once(close_remote_flag_,
+                       [&]() { remote_fwd_->socket()->close(); });
     }
 }
 
