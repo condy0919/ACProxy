@@ -22,6 +22,6 @@ Benchmark
 Program    | P95 (ms) | Request/s
 nginx(raw) |    5     | 16400.91
 squid      |    9     | 6330.65
-acproxy(4) |   11     | 6176.09
+acproxy(4) |   11     | 6258.72
 acproxy(1) |   16     | 3846.09
 mproxy     |   31     | 2265.60

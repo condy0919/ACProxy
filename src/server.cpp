@@ -9,7 +9,8 @@ namespace ACProxy {
 Server::Server(const std::string& addr, int port, std::size_t thread_pool_size)
     : thread_pool_size_(thread_pool_size),
       signals_(io_service_),
-      acceptor_(io_service_) {
+      acceptor_(io_service_),
+      socket_(io_service_) {
     signals_.add(SIGINT);
     signals_.add(SIGTERM);
     signals_.async_wait(boost::bind(&Server::handleStop, this));  // FIXME
@@ -45,10 +46,9 @@ void Server::startAccept() {
     LOG_ACPROXY_INFO("register ACCEPT event");
 
     // TODO eliminate connection obj
-    new_connection_ =
-        std::make_shared<Connection>(io_service_, conn_mgr_);
+    //new_connection_ = std::make_shared<Connection>(io_service_, conn_mgr_);
 
-    acceptor_.async_accept(new_connection_->socket(),
+    acceptor_.async_accept(socket_,
                            boost::bind(&Server::handleAccept, this,  // FIXME
                                        boost::asio::placeholders::error));
 }
@@ -56,14 +56,16 @@ void Server::startAccept() {
 void Server::handleAccept(const boost::system::error_code& e) {
     if (!e) {
         LOG_ACPROXY_INFO("new connection established");
-        conn_mgr_.start(new_connection_);
+        auto conn = std::make_shared<Connection>(io_service_, conn_mgr_);
+        conn->socket() = std::move(socket_);
+        conn_mgr_.start(conn);
+        //conn_mgr_.start(new_connection_);
     }
     startAccept();
 }
 
 void Server::handleStop() {
     LOG_ACPROXY_INFO("stopping server...");
-    acceptor_.close();
     conn_mgr_.stopAll();
     io_service_.stop();
 }

@@ -13,10 +13,11 @@ namespace ACProxy {
 class RemoteForwarder : public std::enable_shared_from_this<RemoteForwarder>,
                         private boost::noncopyable {
 public:
-    explicit RemoteForwarder(boost::asio::io_service::strand& strand,
-                             std::observer_ptr<Connection> conn);
+    explicit RemoteForwarder(std::observer_ptr<Connection> conn);
 
     ~RemoteForwarder() noexcept;
+
+    void stop();
 
     std::shared_ptr<boost::asio::ip::tcp::socket> socket();
     void socket(std::shared_ptr<boost::asio::ip::tcp::socket> sock);
@@ -51,12 +52,11 @@ private:
                        std::size_t bytes_transferred);
 
 private:
-    boost::asio::io_service::strand& strand_;
     std::shared_ptr<boost::asio::ip::tcp::socket> socket_;
     Http::Response response_;
 
-    std::observer_ptr<Connection> conn_;
+    std::once_flag close_flag_;
 
-    std::mutex mtx;
+    std::observer_ptr<Connection> conn_;
 };
 }

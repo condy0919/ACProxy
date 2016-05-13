@@ -9,18 +9,13 @@
 
 namespace ACProxy {
 
-LocalForwarder::LocalForwarder(boost::asio::io_service::strand& strand,
-                               std::observer_ptr<Connection> conn)
-    : strand_(strand),
-      // strand_(conn->getIOService()),
-      socket_(
+LocalForwarder::LocalForwarder(std::observer_ptr<Connection> conn)
+    : socket_(
           std::make_shared<boost::asio::ip::tcp::socket>(conn->getIOService())),
       conn_(conn) {}
 
 LocalForwarder::~LocalForwarder() noexcept {
-    if (socket_ && socket_->is_open()) {
-        socket_->close();
-    }
+    stop();
     LOG_ACPROXY_INFO("LocalForwarder is freed...");
 }
 
@@ -32,12 +27,17 @@ void LocalForwarder::start() {
     getHeaders();
 }
 
+void LocalForwarder::stop() {
+    if (socket_->is_open()) {
+        std::call_once(close_flag_, [&]() { socket_->close(); });
+    }
+}
+
 void LocalForwarder::send(std::string data) {
     boost::asio::async_write(
         *socket_, boost::asio::buffer(data.data(), data.size()),
-        strand_.wrap(boost::bind(&LocalForwarder::sendHandle,
-                                 shared_from_this(),
-                                 boost::asio::placeholders::error)));
+        boost::bind(&LocalForwarder::sendHandle, shared_from_this(),
+                    boost::asio::placeholders::error));
 }
 
 void LocalForwarder::sendHandle(const boost::system::error_code& e) {
@@ -53,9 +53,8 @@ void LocalForwarder::sendHandle(const boost::system::error_code& e) {
 void LocalForwarder::getHeaders() {
     socket_->async_read_some(
         boost::asio::null_buffers(),
-        strand_.wrap(boost::bind(&LocalForwarder::getHeadersHandle,
-                                 shared_from_this(),
-                                 boost::asio::placeholders::error)));
+        boost::bind(&LocalForwarder::getHeadersHandle, shared_from_this(),
+                    boost::asio::placeholders::error));
 }
 
 void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
@@ -65,7 +64,7 @@ void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
         return;
     }
 
-    LOG_ACPROXY_INFO("starting reading http request headers...");
+    LOG_ACPROXY_INFO("start reading http request headers...");
 
     char buf[1024];  // XXX
 
@@ -174,10 +173,9 @@ void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
 void LocalForwarder::getBody() {
     boost::asio::async_read(
         *socket_, buffer_, boost::asio::transfer_at_least(0),
-        strand_.wrap(
-            boost::bind(&LocalForwarder::getBodyHandle, shared_from_this(),
-                        boost::asio::placeholders::error,
-                        boost::asio::placeholders::bytes_transferred)));
+        boost::bind(&LocalForwarder::getBodyHandle, shared_from_this(),
+                    boost::asio::placeholders::error,
+                    boost::asio::placeholders::bytes_transferred));
 }
 
 void LocalForwarder::getBodyHandle(const boost::system::error_code& e,
@@ -188,7 +186,7 @@ void LocalForwarder::getBodyHandle(const boost::system::error_code& e,
         return;
     }
     if (!e) {
-        LOG_ACPROXY_INFO("starting to read http request body...");
+        LOG_ACPROXY_INFO("start to read http request body...");
 
         // TODO zero-copy
         boost::asio::streambuf::const_buffers_type bufs = buffer_.data();

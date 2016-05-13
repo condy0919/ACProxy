@@ -10,7 +10,7 @@ void ConnectionManager::start(std::shared_ptr<Connection> conn) {
 }
 
 void ConnectionManager::stop(std::shared_ptr<Connection> conn) {
-    conn->stop();
+    //conn->stop();
     {
         std::lock_guard<std::mutex> guard(mtx);
         conns_.erase(conn); // FIXME how to stop a connection properly?
@@ -18,9 +18,9 @@ void ConnectionManager::stop(std::shared_ptr<Connection> conn) {
 }
 
 void ConnectionManager::stopAll() {
-    for (auto&& conn : conns_) {
-        conn->stop();
-    }
+    //for (auto&& conn : conns_) {
+    //    conn->stop();
+    //}
     {
         std::lock_guard<std::mutex> guard(mtx);
         conns_.clear();

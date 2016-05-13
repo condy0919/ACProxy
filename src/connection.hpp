@@ -24,12 +24,9 @@ public:
 
     void start();
 
-    void stop(); // an alias of close
+    void stop();
 
     void update(); // update at the end of handle
-
-    enum CloseType { Local = 0x1, Remote = 0x2, Both = Local | Remote };
-    void close(CloseType t = Both);
 
     boost::asio::io_service& getIOService();
 
@@ -38,16 +35,13 @@ public:
     std::shared_ptr<LocalForwarder> getLocalForwarder();
 
 private:
-    void timeout();
+    void timeout(const boost::system::error_code& e);
 
 private:
     boost::asio::io_service& io_service_;
-    boost::asio::io_service::strand strand_;
     ConnectionManager& conn_mgr_;
     std::shared_ptr<LocalForwarder> local_fwd_;
     std::shared_ptr<RemoteForwarder> remote_fwd_;
-    std::once_flag close_local_flag_, close_remote_flag_;
-    //std::atomic<bool> is_finished_;
 
     boost::asio::deadline_timer timeout_;
 };

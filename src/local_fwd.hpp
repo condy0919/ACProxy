@@ -5,19 +5,21 @@
 #include "../libs/observer_ptr.hpp"
 #include <boost/asio.hpp>
 #include <memory>
+#include <mutex>
 
 namespace ACProxy {
 
 class LocalForwarder : public std::enable_shared_from_this<LocalForwarder>,
                        private boost::noncopyable {
 public:
-    explicit LocalForwarder(boost::asio::io_service::strand& strand,
-                            std::observer_ptr<Connection> conn);
+    explicit LocalForwarder(std::observer_ptr<Connection> conn);
     ~LocalForwarder() noexcept;
 
     std::shared_ptr<boost::asio::ip::tcp::socket> socket();
 
     void start();
+
+    void stop();
 
     void send(std::string data);
 
@@ -34,9 +36,10 @@ private:
                        std::size_t bytes_transferred);
 
 private:
-    boost::asio::io_service::strand& strand_;
     std::shared_ptr<boost::asio::ip::tcp::socket> socket_;
     Http::Request request_;
+
+    std::once_flag close_flag_;
 
     std::observer_ptr<Connection> conn_;
 };

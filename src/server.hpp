@@ -26,7 +26,7 @@ private:
     boost::asio::io_service io_service_;
     boost::asio::signal_set signals_;
     boost::asio::ip::tcp::acceptor acceptor_;
-    std::shared_ptr<Connection> new_connection_;
+    boost::asio::ip::tcp::socket socket_;
     ConnectionManager conn_mgr_;
 };
 }
