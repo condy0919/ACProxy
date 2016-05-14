@@ -4,6 +4,7 @@
 #include "http/response.hpp"
 #include "../libs/observer_ptr.hpp"
 #include <boost/noncopyable.hpp>
+#include <boost/optional.hpp>
 #include <string>
 #include <memory>
 #include <mutex>
@@ -26,6 +27,7 @@ public:
 
     void setResponseBody(bool on = true) noexcept;
     void setParseResponseHeader(bool on = true) noexcept;
+    void setCacheKey(std::string key);
 
     void send(std::string data);
 
@@ -33,6 +35,8 @@ private:
     bool has_response_body_ = true;
     bool parse_response_header_ = true;
     bool get_header_once_ = true;
+    boost::optional<std::string> cache_key_;
+    std::string cache_value_;
 
 private:
     void sendHandle(const boost::system::error_code& e);

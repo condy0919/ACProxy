@@ -1,4 +1,5 @@
 #include "log.hpp"
+#include "singleton/global.hpp"
 #include "http/response.hpp"
 #include "remote_fwd.hpp"
 #include "local_fwd.hpp"
@@ -84,6 +85,10 @@ void RemoteForwarder::setResponseBody(bool on) noexcept {
 
 void RemoteForwarder::setParseResponseHeader(bool on) noexcept {
     parse_response_header_ = on;
+}
+
+void RemoteForwarder::setCacheKey(std::string key) {
+    cache_key_ = key;
 }
 
 void RemoteForwarder::send(std::string data) {
@@ -222,6 +227,9 @@ void RemoteForwarder::getHeadersHandle(const boost::system::error_code& e) {
 
         response_.setKeepAlive(false);
         conn_->getLocalForwarder()->send(response_.toBuffer());
+        if (cache_key_) {
+            cache_value_ += response_.toBuffer();
+        }
 
         if (has_response_body_) {
             getBody();
@@ -246,6 +254,12 @@ void RemoteForwarder::getBodyHandle(const boost::system::error_code& e,
     if (bytes_transferred == 0) {
         LOG_ACPROXY_INFO("no http response body...");
         conn_->stop();
+
+        if (cache_key_) {
+            auto& cache = getGlobalCache();
+            cache.set(cache_key_.value(), cache_value_);
+        }
+
         return;
     }
 
@@ -257,6 +271,9 @@ void RemoteForwarder::getBodyHandle(const boost::system::error_code& e,
         buffer_.consume(str.size());
         LOG_ACPROXY_DEBUG("send ", bytes_transferred, " bytes to client");
         conn_->getLocalForwarder()->send(str);
+        if (cache_key_) {
+            cache_value_ += str;
+        }
         getBody();
         conn_->update();
         //socket_->close(); // TODO socket pool, no need to close

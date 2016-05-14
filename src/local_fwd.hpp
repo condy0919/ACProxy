@@ -22,9 +22,11 @@ public:
     void stop();
 
     void send(std::string data);
+    void finish(std::string data);
 
 private:
     void sendHandle(const boost::system::error_code& e);
+    void finishHandle(const boost::system::error_code& e);
 
     std::vector<char> headers;
     void getHeaders();

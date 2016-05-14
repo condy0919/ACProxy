@@ -2,6 +2,7 @@
 #include "connection.hpp"
 #include "local_fwd.hpp"
 #include "remote_fwd.hpp"
+#include "singleton/global.hpp"
 #include <boost/bind.hpp>
 #include <cstring>
 #include <sys/types.h>
@@ -47,6 +48,23 @@ void LocalForwarder::sendHandle(const boost::system::error_code& e) {
     } else {
         LOG_ACPROXY_ERROR("send response to client error ", e.message());
         //conn_->close();
+    }
+}
+
+void LocalForwarder::finish(std::string data) {
+    boost::asio::async_write(
+        *socket_, boost::asio::buffer(data.data(), data.size()),
+        boost::bind(&LocalForwarder::finishHandle, shared_from_this(),
+                    boost::asio::placeholders::error));
+}
+
+void LocalForwarder::finishHandle(const boost::system::error_code& e) {
+    if (!e) {
+        conn_->stop();
+        LOG_ACPROXY_INFO("finish connection");
+    } else {
+        conn_->stop();
+        LOG_ACPROXY_ERROR("finish connection error ", e.message());
     }
 }
 
@@ -130,6 +148,19 @@ void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
 
         request_.rewrite();
         request_.setKeepAlive(false);
+
+        // cache layer
+        if (request_.method == "GET" || request_.method == "HEAD") {
+            std::string key = keygen(request_.getHost(), request_.getPort(),
+                                     request_.uri, request_.method);
+            auto& cache = getGlobalCache();
+            if (boost::optional<std::string> resp = cache.get(key)) {
+                LOG_ACPROXY_INFO("hit, found in cache!");
+                finish(resp.value());
+                return;
+            }
+            conn_->getRemoteForwarder()->setCacheKey(key);
+        }
 
         // LOG_ACPROXY_DEBUG("request = \n", request_.toBuffer());
 
