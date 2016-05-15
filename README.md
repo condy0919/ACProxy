@@ -9,7 +9,7 @@ TODO
 * 远端 Connection close 之间，让相应的连接也断掉.
 * Socket pool(reference count)
 * Filter
-* Cache
+* Cache(定时功能)
 
 BUGS
 ------------------
