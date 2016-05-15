@@ -203,7 +203,7 @@ void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
 
 void LocalForwarder::getBody() {
     boost::asio::async_read(
-        *socket_, buffer_, boost::asio::transfer_at_least(0),
+        *socket_, buffer_, boost::asio::transfer_at_least(1),
         boost::bind(&LocalForwarder::getBodyHandle, shared_from_this(),
                     boost::asio::placeholders::error,
                     boost::asio::placeholders::bytes_transferred));

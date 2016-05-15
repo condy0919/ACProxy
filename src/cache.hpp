@@ -5,7 +5,10 @@
 #include <boost/optional.hpp>
 #include <boost/lexical_cast.hpp>
 #include <list>
+#include <mutex>
 #include <memory>
+#include <stdexcept>
+#include <shared_mutex>
 #include <unordered_map>
 
 namespace ACProxy {
@@ -213,32 +216,44 @@ template <typename KeyT, typename ValueT, std::size_t LocalCacheSize,
 class Cache {
 public:
     Cache() : redis_connector_("127.0.0.1", 6379) {
-        redis_connector_.connect();
+        if (!redis_connector_.connect()) {
+            throw std::runtime_error("redis connection failed"); // XXX
+        }
     }
 
     boost::optional<ValueT> get(const KeyT& k) {
-        boost::optional<ValueT> ret = local_cache_.get(k);
-        if (!ret) {
-            auto res = redis_connector_.command("get %s", k); // FIXME
-            if (!res->str) {
-                return {};
-            }
-            return boost::lexical_cast<ValueT>(res->str);
+        {
+            std::shared_lock<std::shared_mutex> lock(mtx_);
+            boost::optional<ValueT> ret = local_cache_.get(k);
+            if (ret)
+                return ret;
         }
-        return ret;
+        std::shared_ptr<redisReply> res;
+        {
+            std::unique_lock<std::mutex> lock(ex_mtx_);
+            res = redis_connector_.command("get %s", k);  // FIXME
+        }
+        if (!res || !res->str) {
+            return {};
+        }
+        return boost::lexical_cast<ValueT>(res->str);
     }
 
-    void set(const KeyT& k, const ValueT& v) {
+    void set(const KeyT& k, const ValueT& v, std::size_t timeout = 3600) {
         if (v.size() <= LocalCacheThreshold) {
+            std::unique_lock<std::shared_mutex> lock(mtx_);
             local_cache_.insert(k, v);
         } else if (v.size() <= RedisThreshold) {
-            redis_connector_.command("set %s %s", k, v); // FIXME
+            std::unique_lock<std::mutex> lock(ex_mtx_);
+            redis_connector_.command("setex %s %d %s", k, timeout, v); // FIXME
         } else {
             LOG_ACPROXY_WARNING("sizeof value is larger than threshold");
         }
     }
 
 private:
+    std::shared_mutex mtx_;
+    std::mutex ex_mtx_;
     LocalCache<KeyT, ValueT, LocalCacheSize> local_cache_;
     RedisConnector redis_connector_;
 };
