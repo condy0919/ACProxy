@@ -47,7 +47,12 @@ bool RemoteForwarder::connect(std::string host, int port) {
 
     socket_->open(boost::asio::ip::tcp::v4());
 
-    socket_->non_blocking(true);
+    boost::system::error_code ec;
+    socket_->non_blocking(true, ec);
+    if (ec) {
+        LOG_ACPROXY_WARNING("non_blocking(true) error ", ec.message());
+        return false;
+    }
     // boost::asio, fvck you!
     // @see https://svn.boost.org/trac/boost/ticket/9296
     // socket_->connect(ep, ec);
@@ -65,7 +70,11 @@ bool RemoteForwarder::connect(std::string host, int port) {
     };
     // 1000ms
     ret = ::poll(&fds, 1, 1000); // TODO CUSTOM IT
-    socket_->non_blocking(false);  // recover
+    socket_->non_blocking(false, ec);  // recover
+    if (ec) {
+        LOG_ACPROXY_WARNING("non_blocking(false) error ", ec.message());
+        return false;
+    }
     if (ret == 1) {
         LOG_ACPROXY_INFO("it connects");
         return true;
