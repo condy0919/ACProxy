@@ -10,7 +10,7 @@
 
 namespace ACProxy {
 
-LocalForwarder::LocalForwarder(std::observer_ptr<Connection> conn)
+LocalForwarder::LocalForwarder(std::shared_ptr<Connection> conn)
     : socket_(
           std::make_shared<boost::asio::ip::tcp::socket>(conn->getIOService())),
       conn_(conn) {}
@@ -43,8 +43,12 @@ void LocalForwarder::send(std::string data) {
 
 void LocalForwarder::sendHandle(const boost::system::error_code& e) {
     if (!e) {
-        conn_->update();
-        LOG_ACPROXY_INFO("send response to client success");
+        if (auto c = conn_.lock()) {
+            c->update();
+            LOG_ACPROXY_INFO("send response to client success");
+        } else {
+            LOG_ACPROXY_WARNING("connection object is freed");
+        }
     } else {
         LOG_ACPROXY_ERROR("send response to client error ", e.message());
         //conn_->close();
@@ -60,10 +64,18 @@ void LocalForwarder::finish(std::string data) {
 
 void LocalForwarder::finishHandle(const boost::system::error_code& e) {
     if (!e) {
-        conn_->stop();
-        LOG_ACPROXY_INFO("finish connection");
+        if (auto c = conn_.lock()) {
+            c->stop();
+            LOG_ACPROXY_INFO("finish connection");
+        } else {
+            LOG_ACPROXY_WARNING("connection object is freed");
+        }
     } else {
-        conn_->stop();
+        if (auto c = conn_.lock()) {
+            c->stop();
+        } else {
+            LOG_ACPROXY_WARNING("connection object is freed");
+        }
         LOG_ACPROXY_ERROR("finish connection error ", e.message());
     }
 }
@@ -159,18 +171,33 @@ void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
                 finish(resp.value());
                 return;
             }
-            conn_->getRemoteForwarder()->setCacheKey(key);
+            if (auto c = conn_.lock()) {
+                c->getRemoteForwarder()->setCacheKey(key);
+            } else {
+                LOG_ACPROXY_WARNING("connection object is freed");
+                return;
+            }
         }
 
         // LOG_ACPROXY_DEBUG("request = \n", request_.toBuffer());
 
         if (!request_.hasResponseBody()) {
-            conn_->getRemoteForwarder()->setResponseBody(false);
+            if (auto c = conn_.lock()) {
+                c->getRemoteForwarder()->setResponseBody(false);
+            } else {
+                LOG_ACPROXY_WARNING("connection object is freed");
+                return;
+            }
         }
 
         std::string host = request_.getHost();
         int port = request_.getPort();
-        res = conn_->getRemoteForwarder()->connect(host, port);
+        if (auto c = conn_.lock()) {
+            res = c->getRemoteForwarder()->connect(host, port);
+        } else {
+            LOG_ACPROXY_WARNING("connection object is freed");
+            return;
+        }
         if (!res) {
             // XXX Maybe shutdowning socket is better
             LOG_ACPROXY_INFO("connection timeout, close it");
@@ -182,10 +209,20 @@ void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
 
         if (!request_.isConnectMethod()) {
             // forward header to server
-            conn_->getRemoteForwarder()->send(request_.toBuffer());
+            if (auto c = conn_.lock()) {
+                c->getRemoteForwarder()->send(request_.toBuffer());
+            } else {
+                LOG_ACPROXY_WARNING("connection object is freed");
+                return;
+            }
         } else {
             // no parse response header, get rawdata and forward instead
-            conn_->getRemoteForwarder()->setParseResponseHeader(false);
+            if (auto c = conn_.lock()) {
+                c->getRemoteForwarder()->setParseResponseHeader(false);
+            } else {
+                LOG_ACPROXY_WARNING("connection object is freed");
+                return;
+            }
             // send a fake 200 response in tunnel mode
             send("HTTP/1.1 200 Connection Established\r\n\r\n");
         }
@@ -198,7 +235,12 @@ void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
         LOG_ACPROXY_INFO("http request header incomplete, read again");
         getHeaders();
     }
-    conn_->update();
+    if (auto c = conn_.lock()) {
+        c->update();
+    } else {
+        LOG_ACPROXY_WARNING("connection object is freed");
+        return;
+    }
 }
 
 void LocalForwarder::getBody() {
@@ -224,9 +266,13 @@ void LocalForwarder::getBodyHandle(const boost::system::error_code& e,
         std::string str(boost::asio::buffers_begin(bufs),
                         boost::asio::buffers_end(bufs));
         buffer_.consume(str.size());
-        conn_->getRemoteForwarder()->send(str);
-        getBody();
-        conn_->update();
+        if (auto c = conn_.lock()) {
+            c->getRemoteForwarder()->send(str);
+            getBody();
+            c->update();
+        } else {
+            LOG_ACPROXY_WARNING("connection object is freed");
+        }
     } else if (e != boost::asio::error::eof &&
                e != boost::asio::error::connection_reset) {
         LOG_ACPROXY_ERROR("read http request content body error ", e.message());

@@ -16,7 +16,6 @@ struct Request {
     std::string uri;
     std::string http_version;
     std::vector<std::pair<std::string, std::string>> headers;
-    //std::map<std::string, std::string> headers;
     boost::optional<std::string> content;
 
     void setKeepAlive(bool on = true);

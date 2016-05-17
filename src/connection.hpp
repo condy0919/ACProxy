@@ -22,6 +22,8 @@ public:
 
     boost::asio::ip::tcp::socket& socket();
 
+    void init();
+
     void start();
 
     void stop();

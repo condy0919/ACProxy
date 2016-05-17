@@ -15,8 +15,6 @@ Connection::Connection(boost::asio::io_service& io_service,
                        ConnectionManager& mgr)
     : io_service_(io_service),
       conn_mgr_(mgr),
-      local_fwd_(std::make_shared<LocalForwarder>(this)),
-      remote_fwd_(std::make_shared<RemoteForwarder>(this)),
       timeout_(io_service) {
     timeout_.expires_at(boost::posix_time::pos_infin);
 }
@@ -28,6 +26,11 @@ Connection::~Connection() noexcept {
 
 boost::asio::ip::tcp::socket& Connection::socket() {
     return *local_fwd_->socket();
+}
+
+void Connection::init() {
+    local_fwd_ = std::make_shared<LocalForwarder>(shared_from_this());
+    remote_fwd_ = std::make_shared<RemoteForwarder>(shared_from_this());
 }
 
 void Connection::start() {

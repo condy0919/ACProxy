@@ -13,7 +13,7 @@ TODO
 
 BUGS
 ------------------
-* 有时 Logger::~Logger 会跪，coredump文件定位到 std::string::_M_append 有问题，无法复现 _(:з」∠)_  目前预先 reserve 了，暂时没有再出现问题.
+* Nothing
 
 
 Benchmark

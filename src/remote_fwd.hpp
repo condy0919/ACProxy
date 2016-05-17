@@ -2,7 +2,6 @@
 
 #include "connection.hpp"
 #include "http/response.hpp"
-#include "../libs/observer_ptr.hpp"
 #include <boost/noncopyable.hpp>
 #include <boost/optional.hpp>
 #include <string>
@@ -14,7 +13,7 @@ namespace ACProxy {
 class RemoteForwarder : public std::enable_shared_from_this<RemoteForwarder>,
                         private boost::noncopyable {
 public:
-    explicit RemoteForwarder(std::observer_ptr<Connection> conn);
+    explicit RemoteForwarder(std::shared_ptr<Connection> conn);
 
     ~RemoteForwarder() noexcept;
 
@@ -61,6 +60,6 @@ private:
 
     std::once_flag close_flag_;
 
-    std::observer_ptr<Connection> conn_;
+    std::weak_ptr<Connection> conn_;
 };
 }

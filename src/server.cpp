@@ -57,6 +57,7 @@ void Server::handleAccept(const boost::system::error_code& e) {
     if (!e) {
         LOG_ACPROXY_INFO("new connection established");
         auto conn = std::make_shared<Connection>(io_service_, conn_mgr_);
+        conn->init();
         conn->socket() = std::move(socket_);
         conn_mgr_.start(conn);
         //conn_mgr_.start(new_connection_);
