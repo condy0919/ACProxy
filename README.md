@@ -10,10 +10,15 @@ TODO
 * Socket pool(reference count)
 * Filter
 * Cache(定时功能)
+* 适当用设计模式，将不同的HTTP Request请求处理函数独立成类
+* 适当用宏简化重复代码, return\_if
+* 根据 network proposal 重写网络库
+* 把 asio 替换成 reactor 的库
+* 替换 boost::spirit, 编译性能太差
 
 BUGS
 ------------------
-* Nothing
+* Everything
 
 
 Benchmark
