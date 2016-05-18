@@ -5,7 +5,7 @@ PROC = acproxy
 
 LIBS = -pthread -lboost_system -lhiredis
 
-CXXFLAGS = -std=c++17 -Ofast
+CXXFLAGS = -std=c++17 -pthread -g -ggdb
 
 all: LINK
 

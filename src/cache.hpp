@@ -223,7 +223,7 @@ public:
 
     boost::optional<ValueT> get(const KeyT& k) {
         {
-            std::shared_lock<std::shared_mutex> lock(mtx_);
+            std::shared_lock<std::shared_mutex> lock(mtx_); // FIXME
             boost::optional<ValueT> ret = local_cache_.get(k);
             if (ret)
                 return ret;
