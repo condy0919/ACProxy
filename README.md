@@ -5,11 +5,10 @@ What does AC mean?
 
 TODO
 ------------------
-* 监控服务内连接情况, 将数据打进 influxdb 内，采用 grafana 来展示
 * 远端 Connection close 之间，让相应的连接也断掉.
 * Socket pool(reference count)
 * Filter
-* Cache(定时功能)
+* Cache(lazy delete)
 * 适当用设计模式，将不同的HTTP Request请求处理函数独立成类
 * 适当用宏简化重复代码, return\_if
 * 根据 network proposal 重写网络库
