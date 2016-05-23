@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <sstream>
 #include <cstring>
+#include <atomic>
 
 namespace ACProxy {
 
@@ -48,6 +49,38 @@ void Connection::stop() {
 void Connection::update() {
     // XXX HARD CODE
     timeout_.expires_from_now(boost::posix_time::seconds(10));
+}
+
+void Connection::report(std::string metric,
+                        std::vector<std::pair<std::string, std::string>> tags,
+                        std::time_t tm) {
+    static std::atomic<std::size_t> failures(0);
+    std::ostringstream oss;
+
+    oss << metric;
+    for (auto&& tag : tags) {
+        oss << "," << tag.first << "=" << tag.second;
+    }
+    oss << " value=" << ++failures << " " << tm << "000000000";
+
+    std::string data = std::move(oss.str());
+
+    boost::asio::ip::tcp::iostream stream("127.0.0.1", "8086");
+    stream.expires_from_now(boost::posix_time::seconds(10));
+    //stream.connect("127.0.0.1", "8086");
+    stream << "POST /write?db=acproxy HTTP/1.1\r\n"
+           << "Host: 127.0.0.1:8086\r\n"
+           << "Accept: */*\r\n"
+           << "Content-Length: " << data.size() << "\r\n"
+           << "Content-Type: application/x-www-form-urlencoded\r\n"
+           << "Connection: close\r\n"
+           << "\r\n"
+           << data;
+    stream.flush();
+    LOG_ACPROXY_DEBUG(stream.rdbuf());
+    stream.close();
+
+    LOG_ACPROXY_INFO("report to influxdb done");
 }
 
 boost::asio::io_service& Connection::getIOService() {

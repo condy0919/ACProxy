@@ -199,6 +199,10 @@ void LocalForwarder::getHeadersHandle(const boost::system::error_code& e) {
             return;
         }
         if (!res) {
+            if (auto c = conn_.lock()) {
+                c->report("failure", {{"host", boost::asio::ip::host_name()}},
+                          std::time(0));
+            }
             // XXX Maybe shutdowning socket is better
             LOG_ACPROXY_INFO("connection timeout, close it");
             //send("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n");

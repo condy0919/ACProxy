@@ -30,11 +30,16 @@ public:
 
     void update(); // update at the end of handle
 
+
     boost::asio::io_service& getIOService();
 
     std::shared_ptr<RemoteForwarder> getRemoteForwarder();
 
     std::shared_ptr<LocalForwarder> getLocalForwarder();
+
+    void report(std::string metric,
+                std::vector<std::pair<std::string, std::string>> tags,
+                std::time_t tm);
 
 private:
     void timeout(const boost::system::error_code& e);

@@ -60,7 +60,6 @@ void Server::handleAccept(const boost::system::error_code& e) {
         conn->init();
         conn->socket() = std::move(socket_);
         conn_mgr_.start(conn);
-        //conn_mgr_.start(new_connection_);
     }
     startAccept();
 }
